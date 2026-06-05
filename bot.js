@@ -9,9 +9,10 @@ const DRY_RUN = process.env.DRY_RUN !== "false";
 
 // Strategy state — controlled by dashboard settings
 export const botSettings = {
-  strategies: { RSI_EMA: true, WALL: true, BREAKOUT: true },
+  strategies: { TREND_SCALP: true, MOMENTUM: true, MEAN_REVERT: true },
   autoMode: true,
   enabled: true,
+  dryRun: process.env.DRY_RUN !== "false",
 };
 
 export async function runScanCycle() {
