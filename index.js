@@ -22,16 +22,26 @@ export const config = {
   port: parseInt(process.env.PORT || "3000"),
 };
 
-console.log("🚀 PolyBot BTC — Momentum Scalp Edition");
-console.log(`   Mode: ${config.bot.dryRun ? "DRY RUN" : "LIVE"}`);
-console.log(`   TP: ${(config.bot.tpLow*100).toFixed(0)}–${(config.bot.tpHigh*100).toFixed(0)}% | SL: ${(config.bot.stopLoss*100).toFixed(0)}% | Scan: ${config.bot.scanIntervalSeconds}s`);
+// In-memory log for dashboard
+const systemLog = [];
+function addLog(type, msg) {
+  systemLog.unshift({ ts: new Date().toISOString(), type, msg });
+  if (systemLog.length > 200) systemLog.pop();
+  console.log(`[${type.toUpperCase()}] ${msg}`);
+}
 
 let lastSignals = null, lastMarkets = [], isScanning = false;
 
-import("./bot.js").then(({ runScanCycle }) => {
+// Runtime dryRun flag — can be toggled via dashboard without restart
+let runtimeDryRun = config.bot.dryRun;
+
+import("./bot.js").then(async ({ runScanCycle, botSettings }) => {
+  // Sync initial dryRun into botSettings so dashboard can read it
+  botSettings.dryRun = runtimeDryRun;
   const app = express();
   app.use(express.json());
 
+  // Dashboard
   app.get("/dashboard", (_, res) => {
     try { res.setHeader("Content-Type","text/html"); res.send(readFileSync(join(__dirname,"dashboard.html"),"utf8")); }
     catch { res.status(404).send("dashboard.html not found"); }
@@ -41,13 +51,14 @@ import("./bot.js").then(({ runScanCycle }) => {
 
   app.get("/", async (_, res) => {
     const { getStats } = await import("./state.js");
-    res.json({ bot: "PolyBot BTC", mode: config.bot.dryRun ? "DRY_RUN" : "LIVE", config: config.bot, stats: getStats() });
+    res.json({ bot: "PolyBot BTC", mode: botSettings.dryRun ? "DRY_RUN" : "LIVE", config: config.bot, stats: getStats(), settings: botSettings });
   });
 
   app.get("/bets", async (_, res) => { const { getAllBets } = await import("./state.js"); res.json(getAllBets()); });
   app.get("/active", async (_, res) => { const { getAllActiveBets } = await import("./state.js"); res.json(getAllActiveBets()); });
   app.get("/signals", (_, res) => res.json(lastSignals || {}));
   app.get("/markets", (_, res) => res.json(lastMarkets));
+  app.get("/log", (_, res) => res.json(systemLog));
 
   app.get("/price", async (_, res) => {
     try {
@@ -57,22 +68,78 @@ import("./bot.js").then(({ runScanCycle }) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  app.listen(config.port, () => console.log(`🌐 Port ${config.port} | /dashboard`));
+  // ── Settings API ───────────────────────────────────────────
+  app.get("/settings", (_, res) => res.json(botSettings));
+
+  app.post("/settings", (req, res) => {
+    const { strategies, autoMode, enabled, dryRun } = req.body;
+    const changes = [];
+
+    if (typeof dryRun === "boolean" && dryRun !== botSettings.dryRun) {
+      botSettings.dryRun = dryRun;
+      runtimeDryRun = dryRun;
+      const msg = dryRun
+        ? "⚠️  Switched to DRY RUN — no real orders will be placed"
+        : "🔴 SWITCHED TO LIVE MODE — real money orders ENABLED";
+      changes.push(msg);
+      addLog(dryRun ? "warn" : "err", msg);
+    }
+
+    if (typeof enabled === "boolean" && enabled !== botSettings.enabled) {
+      botSettings.enabled = enabled;
+      const msg = enabled ? "Bot RESUMED via dashboard" : "Bot PAUSED via dashboard";
+      changes.push(msg);
+      addLog(enabled ? "ok" : "warn", msg);
+    }
+
+    if (typeof autoMode === "boolean" && autoMode !== botSettings.autoMode) {
+      botSettings.autoMode = autoMode;
+      const msg = `Auto strategy: ${autoMode ? "ON" : "OFF"}`;
+      changes.push(msg);
+      addLog("info", msg);
+    }
+
+    if (strategies) {
+      for (const [key, val] of Object.entries(strategies)) {
+        if (typeof val === "boolean" && botSettings.strategies[key] !== val) {
+          botSettings.strategies[key] = val;
+          const msg = `Strategy ${key}: ${val ? "ENABLED" : "DISABLED"}`;
+          changes.push(msg);
+          addLog(val ? "ok" : "warn", msg);
+        }
+      }
+    }
+
+    res.json({ ok: true, settings: botSettings, changes });
+  });
+
+  app.listen(config.port, () => {
+    addLog("ok", `PolyBot started on port ${config.port} | Mode: ${config.bot.dryRun ? "DRY RUN" : "LIVE"}`);
+    addLog("info", `Scan interval: ${config.bot.scanIntervalSeconds}s | TP: ${(config.bot.tpLow*100).toFixed(0)}-${(config.bot.tpHigh*100).toFixed(0)}% | SL: ${(config.bot.stopLoss*100).toFixed(0)}%`);
+  });
 
   async function scan() {
     if (isScanning) return;
     isScanning = true;
     try {
-      const { computeSignals, fetchOrderBook, detectWalls } = await import("./signals.js");
+      const { computeSignals, fetchOrderBook } = await import("./signals.js");
       const { fetchBTCMarkets } = await import("./polymarket.js");
       const { sizeBet } = await import("./kelly.js");
       const { scoreSentiment } = await import("./sentiment.js");
       const { scalpQuality } = await import("./scalper.js");
 
-      const [sigR, bookR] = await Promise.allSettled([computeSignals(), fetchOrderBook(150)]);
+      const [sigR, bookR] = await Promise.allSettled([
+        computeSignals(botSettings.strategies, botSettings.autoMode),
+        fetchOrderBook(150),
+      ]);
+
       if (sigR.status === "fulfilled") {
-        const walls = detectWalls(bookR.status === "fulfilled" ? bookR.value : null, sigR.value.currentPrice);
-        lastSignals = { ...sigR.value, walls };
+        lastSignals = sigR.value;
+        if (lastSignals.activeStrategy) {
+          addLog("info", `Scan: ${lastSignals.activeStrategy} | bias:${lastSignals.bias.toFixed(3)} | conf:${(lastSignals.confidence*100).toFixed(0)}% | $${lastSignals.currentPrice?.toLocaleString()}`);
+        }
+      } else {
+        addLog("err", "Signal error: " + sigR.reason?.message);
       }
 
       const markets = await fetchBTCMarkets();
@@ -91,15 +158,23 @@ import("./bot.js").then(({ runScanCycle }) => {
         lastMarkets = enriched;
       }
 
-      await runScanCycle();
+      const result = await runScanCycle();
+      if (result?.exits?.length > 0) {
+        for (const e of result.exits) {
+          addLog(e.pnl > 0 ? "ok" : "warn", `EXIT [${e.reason}] ${e.side} $${e.pnl >= 0 ? "+" : ""}${e.pnl} | ${e.market?.slice(0,45)}`);
+        }
+      }
+      if (result?.betsPlaced > 0) {
+        addLog("ok", `Placed ${result.betsPlaced} new bet(s) | Active: ${(await import("./state.js")).getStats().activeBets}`);
+      }
     } catch (err) {
-      console.error("Scan error:", err.message);
+      addLog("err", "Scan error: " + err.message);
     } finally {
       isScanning = false;
     }
   }
 
   setInterval(scan, config.bot.scanIntervalSeconds * 1000);
-  console.log(`⚡ Scalping every ${config.bot.scanIntervalSeconds}s | TP: ${(config.bot.tpLow*100).toFixed(0)}–${(config.bot.tpHigh*100).toFixed(0)}% | SL: ${(config.bot.stopLoss*100).toFixed(0)}%`);
+  addLog("info", `Scanner started — every ${config.bot.scanIntervalSeconds}s`);
   scan();
 }).catch(err => { console.error("Boot failed:", err.message); process.exit(1); });
