@@ -1,13 +1,11 @@
 /**
  * polymarket.js
- * Fetches REAL live Polymarket BTC markets.
- * DRY RUN = same real decisions, no actual order submission.
- * LIVE = real orders via CLOB API.
+ * Fetches live BTC markets from Polymarket.
+ * Falls back to price-aware synthetic markets if none found with valid expiry.
  */
 
 import axios from "axios";
 
-// Runtime dryRun reads from botSettings (toggled via dashboard)
 let _botSettings = null;
 async function getDryRun() {
   if (!_botSettings) {
@@ -24,82 +22,89 @@ const BTC_KW = [
   "btc reach", "bitcoin reach",
 ];
 
-// ── Real Polymarket CLOB market fetch ─────────────────────────
-export async function fetchBTCMarkets() {
-  let markets = [];
+function isValidScalpMarket(m) {
+  if (!m.endDateIso && !m.endDate) return false;
+  const end = new Date(m.endDateIso || m.endDate);
+  const msLeft = end - Date.now();
+  const minLeft = msLeft / 60000;
+  return minLeft >= 4 && minLeft <= 180; // 4 min to 3 hours
+}
 
-  // Try real Polymarket CLOB API first
+export async function fetchBTCMarkets() {
+  // Try real Polymarket CLOB
   try {
     const { data } = await axios.get("https://clob.polymarket.com/markets", {
-      params: { active: true, closed: false, limit: 100 },
+      params: { active: true, closed: false, limit: 200 },
       timeout: 10000,
       headers: { "Accept": "application/json" },
     });
-
     const all = data?.data || data || [];
-    markets = all.filter(m => {
-      const q = (m.question || m.title || "").toLowerCase();
-      return BTC_KW.some(kw => q.includes(kw));
-    });
+    const btc = all
+      .filter(m => {
+        const q = (m.question || m.title || "").toLowerCase();
+        return BTC_KW.some(kw => q.includes(kw));
+      })
+      .filter(isValidScalpMarket)
+      .map(normalizeMarket);
 
-    if (markets.length > 0) {
-      console.log(`📊 Polymarket: ${markets.length} live BTC markets`);
-      // Normalize token prices to 0.0–1.0
-      return markets.map(normalizeMarket);
+    if (btc.length > 0) {
+      console.log(`📊 Polymarket CLOB: ${btc.length} live BTC scalp markets`);
+      return btc;
     }
+    console.log(`📊 Polymarket CLOB: found BTC markets but none with valid expiry — using synthetic`);
   } catch (err) {
-    console.log("⚠️  Polymarket CLOB unreachable:", err.message);
+    console.log("⚠️  Polymarket CLOB:", err.message);
   }
 
-  // Try Gamma API (Polymarket's market discovery endpoint)
+  // Try Gamma API
   try {
     const { data } = await axios.get("https://gamma-api.polymarket.com/markets", {
-      params: { active: true, closed: false, limit: 100, tag: "crypto" },
+      params: { active: true, closed: false, limit: 100 },
       timeout: 10000,
     });
-
     const all = Array.isArray(data) ? data : (data?.markets || []);
-    markets = all.filter(m => {
-      const q = (m.question || m.groupItemTitle || "").toLowerCase();
-      return BTC_KW.some(kw => q.includes(kw));
-    });
+    const btc = all
+      .filter(m => {
+        const q = (m.question || m.groupItemTitle || "").toLowerCase();
+        return BTC_KW.some(kw => q.includes(kw));
+      })
+      .filter(isValidScalpMarket)
+      .map(normalizeMarket);
 
-    if (markets.length > 0) {
-      console.log(`📊 Gamma API: ${markets.length} live BTC markets`);
-      return markets.map(normalizeMarket);
+    if (btc.length > 0) {
+      console.log(`📊 Gamma API: ${btc.length} live BTC scalp markets`);
+      return btc;
     }
   } catch (err) {
-    console.log("⚠️  Gamma API unreachable:", err.message);
+    console.log("⚠️  Gamma API:", err.message);
   }
 
-  // Last resort: generate realistic mock markets using live BTC price
-  console.log("⚠️  Using price-aware mock markets (real price, real strategy)");
-  return await getLivePriceMockMarkets();
+  // Synthetic markets — price-aware, correct expiry, no BS
+  console.log("⚠️  No live markets found — using price-aware synthetic markets");
+  return await getSyntheticMarkets();
 }
 
 function normalizeMarket(m) {
-  // Ensure tokens array exists and prices are 0.0–1.0
   if (!m.tokens && m.outcomes) {
     m.tokens = m.outcomes.map((o, i) => ({
       tokenId: m.clobTokenIds?.[i] || `${m.conditionId}_${i}`,
       outcome: o,
-      price: m.outcomePrices?.[i] ? parseFloat(m.outcomePrices[i]) / (parseFloat(m.outcomePrices[i]) > 1 ? 100 : 1) : 0.5,
+      price: m.outcomePrices?.[i]
+        ? Math.min(0.97, Math.max(0.03, parseFloat(m.outcomePrices[i]) / (parseFloat(m.outcomePrices[i]) > 1 ? 100 : 1)))
+        : 0.5,
     }));
   }
   if (m.tokens) {
     m.tokens = m.tokens.map(t => ({
       ...t,
-      price: t.price > 1 ? t.price / 100 : t.price,
+      price: t.price > 1 ? Math.min(0.97, t.price / 100) : Math.min(0.97, Math.max(0.03, t.price)),
     }));
   }
   return m;
 }
 
-// ── Price-aware mock markets ───────────────────────────────────
-// These use the REAL current BTC price and REAL time so strategies
-// behave exactly as they would in live trading.
-async function getLivePriceMockMarkets() {
-  let btcPrice = 104000; // fallback
+async function getSyntheticMarkets() {
+  let btcPrice = 105000;
   try {
     const { data } = await axios.get("https://api.kraken.com/0/public/Ticker", {
       params: { pair: "XBTUSD" }, timeout: 5000,
@@ -108,119 +113,123 @@ async function getLivePriceMockMarkets() {
   } catch {}
 
   const now = Date.now();
-  const min = (n) => new Date(now + n * 60000).toISOString();
+  const min = n => new Date(now + n * 60000).toISOString();
 
-  // Strike prices relative to current price — realistic market structure
-  const above1pct = Math.round((btcPrice * 1.01) / 500) * 500;
-  const above05pct = Math.round((btcPrice * 1.005) / 250) * 250;
-  const below1pct  = Math.round((btcPrice * 0.99) / 500) * 500;
-  const roundNum   = Math.round(btcPrice / 1000) * 1000;
-  const nextRound  = roundNum + 1000;
+  // Strike prices relative to current
+  const p = btcPrice;
+  const r = (pct) => Math.round((p * (1 + pct)) / 100) * 100;
 
-  // Prices are probabilistic — near-ATM contracts are ~45–55¢
-  // Far OTM contracts are cheaper
+  // YES price reflects real probability — near-ATM ~0.47-0.53
+  // Slightly OTM ~0.30-0.40, far OTM ~0.15-0.25
   return [
     {
-      conditionId: `live_15m_${now}`,
-      question: `Will BTC be above $${above05pct.toLocaleString()} in the next 15 minutes?`,
-      endDateIso: min(14),
+      conditionId: `syn_15m_atm_${now}`,
+      question: `Will BTC be above $${r(0).toLocaleString()} in 15 minutes?`,
+      endDateIso: min(15),
       tokens: [
-        { tokenId: `yes_15m_${now}`, outcome: "Yes", price: 0.47 },
-        { tokenId: `no_15m_${now}`,  outcome: "No",  price: 0.53 },
+        { tokenId: `syn_y1_${now}`, outcome: "Yes", price: 0.49 },
+        { tokenId: `syn_n1_${now}`, outcome: "No",  price: 0.51 },
       ],
     },
     {
-      conditionId: `live_30m_${now}`,
-      question: `Will BTC close above $${above1pct.toLocaleString()} in 30 minutes?`,
-      endDateIso: min(28),
+      conditionId: `syn_15m_bull_${now}`,
+      question: `Will BTC rise above $${r(0.005).toLocaleString()} in the next 15 minutes?`,
+      endDateIso: min(15),
       tokens: [
-        { tokenId: `yes_30m_${now}`, outcome: "Yes", price: 0.38 },
-        { tokenId: `no_30m_${now}`,  outcome: "No",  price: 0.62 },
+        { tokenId: `syn_y2_${now}`, outcome: "Yes", price: 0.36 },
+        { tokenId: `syn_n2_${now}`, outcome: "No",  price: 0.64 },
       ],
     },
     {
-      conditionId: `live_1h_bull_${now}`,
-      question: `Will BTC be higher than $${Math.round(btcPrice).toLocaleString()} in 1 hour?`,
-      endDateIso: min(58),
+      conditionId: `syn_15m_bear_${now}`,
+      question: `Will BTC drop below $${r(-0.005).toLocaleString()} in the next 15 minutes?`,
+      endDateIso: min(15),
       tokens: [
-        { tokenId: `yes_1h_${now}`, outcome: "Yes", price: 0.51 },
-        { tokenId: `no_1h_${now}`,  outcome: "No",  price: 0.49 },
+        { tokenId: `syn_y3_${now}`, outcome: "Yes", price: 0.34 },
+        { tokenId: `syn_n3_${now}`, outcome: "No",  price: 0.66 },
       ],
     },
     {
-      conditionId: `live_1h_round_${now}`,
-      question: `Will BTC hit $${nextRound.toLocaleString()} before the end of the hour?`,
-      endDateIso: min(52),
+      conditionId: `syn_1h_bull_${now}`,
+      question: `Will BTC close above $${r(0.01).toLocaleString()} in 1 hour?`,
+      endDateIso: min(60),
       tokens: [
-        { tokenId: `yes_rnd_${now}`, outcome: "Yes", price: 0.29 },
-        { tokenId: `no_rnd_${now}`,  outcome: "No",  price: 0.71 },
+        { tokenId: `syn_y4_${now}`, outcome: "Yes", price: 0.41 },
+        { tokenId: `syn_n4_${now}`, outcome: "No",  price: 0.59 },
       ],
     },
     {
-      conditionId: `live_1h_bear_${now}`,
-      question: `Will BTC drop below $${below1pct.toLocaleString()} in the next hour?`,
-      endDateIso: min(55),
+      conditionId: `syn_1h_atm_${now}`,
+      question: `Will BTC be higher than current price in 1 hour?`,
+      endDateIso: min(60),
       tokens: [
-        { tokenId: `yes_bear_${now}`, outcome: "Yes", price: 0.33 },
-        { tokenId: `no_bear_${now}`,  outcome: "No",  price: 0.67 },
+        { tokenId: `syn_y5_${now}`, outcome: "Yes", price: 0.52 },
+        { tokenId: `syn_n5_${now}`, outcome: "No",  price: 0.48 },
       ],
     },
     {
-      conditionId: `live_90m_${now}`,
-      question: `Will BTC be above $${roundNum.toLocaleString()} at next 90-min mark?`,
-      endDateIso: min(85),
+      conditionId: `syn_1h_bear_${now}`,
+      question: `Will BTC drop below $${r(-0.01).toLocaleString()} in 1 hour?`,
+      endDateIso: min(60),
       tokens: [
-        { tokenId: `yes_90m_${now}`, outcome: "Yes", price: 0.58 },
-        { tokenId: `no_90m_${now}`,  outcome: "No",  price: 0.42 },
+        { tokenId: `syn_y6_${now}`, outcome: "Yes", price: 0.38 },
+        { tokenId: `syn_n6_${now}`, outcome: "No",  price: 0.62 },
+      ],
+    },
+    {
+      conditionId: `syn_90m_bull_${now}`,
+      question: `Will BTC reach $${r(0.015).toLocaleString()} in the next 90 minutes?`,
+      endDateIso: min(90),
+      tokens: [
+        { tokenId: `syn_y7_${now}`, outcome: "Yes", price: 0.33 },
+        { tokenId: `syn_n7_${now}`, outcome: "No",  price: 0.67 },
       ],
     },
   ];
 }
 
-// ── Order placement ────────────────────────────────────────────
 export async function placeOrder({ tokenId, side, size, price, marketQuestion }) {
   const dryRun = await getDryRun();
 
   if (dryRun) {
-    // DRY RUN: log the exact same info a live order would produce.
-    // Strategy, sizing, edge — all identical to live. Just no network call.
+    const payout = parseFloat((size / price).toFixed(2));
+    const profit = parseFloat((payout - size).toFixed(2));
     const order = {
       orderId: `dry_${side}_${Date.now()}`,
       tokenId, side,
-      size: parseFloat(size.toFixed(4)),
+      size: parseFloat(size.toFixed(2)),
       price: parseFloat(price.toFixed(4)),
-      estimatedCost: parseFloat((size).toFixed(2)),
-      potentialPayout: parseFloat((size / price).toFixed(2)),
+      potentialPayout: payout,
+      potentialProfit: profit,
       marketQuestion,
-      status: "dry_run_filled",
+      status: "dry_filled",
       timestamp: new Date().toISOString(),
     };
-    console.log(`    📋 DRY ORDER: ${side} ${size.toFixed(2)} USDC @ ${(price*100).toFixed(1)}¢ | payout if win: $${order.potentialPayout}`);
+    console.log(
+      `    📋 DRY ${side} $${size.toFixed(2)} @ ${(price*100).toFixed(1)}¢` +
+      ` | win → $${payout} (+$${profit})`
+    );
     return order;
   }
 
-  // LIVE — requires Polymarket CLOB client with real credentials
+  // LIVE
   const pk = process.env.POLYMARKET_PRIVATE_KEY;
   const apiKey = process.env.POLYMARKET_API_KEY;
   if (!pk || pk.startsWith("your_") || !apiKey || apiKey.startsWith("your_")) {
-    throw new Error("Live mode requires POLYMARKET_PRIVATE_KEY + POLYMARKET_API_KEY in env vars");
+    throw new Error("Live mode requires POLYMARKET_PRIVATE_KEY + POLYMARKET_API_KEY");
   }
-
-  // Full CLOB client order (requires @polymarket/clob-client installed)
   try {
     const { ClobClient, Side } = await import("@polymarket/clob-client");
     const { ethers } = await import("ethers");
     const wallet = new ethers.Wallet(pk.startsWith("0x") ? pk : `0x${pk}`);
     const client = new ClobClient("https://clob.polymarket.com", 137, wallet, {
-      key: apiKey,
-      secret: process.env.POLYMARKET_API_SECRET,
+      key: apiKey, secret: process.env.POLYMARKET_API_SECRET,
       passphrase: process.env.POLYMARKET_API_PASSPHRASE,
     });
     const order = await client.createAndPostOrder({
       tokenID: tokenId,
       side: side === "BUY" ? Side.BUY : Side.SELL,
-      size: size.toString(),
-      price: price.toString(),
+      size: size.toString(), price: price.toString(),
     });
     console.log(`    ✅ LIVE ORDER: ${order.orderID} | ${side} $${size} @ ${price}`);
     return order;
@@ -230,5 +239,17 @@ export async function placeOrder({ tokenId, side, size, price, marketQuestion })
 }
 
 export async function getBalance() {
+  // In dry run, return running balance from state
+  // In live, this would query Polymarket wallet
+  const dryRun = await getDryRun();
+  if (dryRun) {
+    try {
+      const { getStats } = await import("./state.js");
+      const stats = getStats();
+      const startingBalance = parseFloat(process.env.BANKROLL || "40");
+      // Balance = starting + realized P&L
+      return Math.max(0, startingBalance + parseFloat(stats.pnl || 0));
+    } catch { return parseFloat(process.env.BANKROLL || "40"); }
+  }
   return parseFloat(process.env.BANKROLL || "40");
 }
