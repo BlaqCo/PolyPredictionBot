@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>POLYBETTOR</title>
+<title>POLYBOT//BTC</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -212,8 +212,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="logo">
     <div class="logo-hex"></div>
     <div class="logo-text">
-      <h1>POLY<span>BETTOR</span></h1>
-      <div class="sub">Prediction Market Automated Trading Engine</div>
+      <h1>POLY<span>BOT</span>//BTC</h1>
+      <div class="sub">Momentum Scalp Engine · Prediction Markets</div>
     </div>
   </div>
   <div class="hdr-right">
@@ -281,14 +281,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       </div>
       <div class="bets-hdr"><span>Market</span><span style="text-align:right">Side</span><span style="text-align:right">Size</span><span style="text-align:right">P&L</span><span></span></div>
       <div id="bets-list"><div class="empty">NO BETS YET</div></div>
-      <div id="bets-footer" style="display:none;padding:8px 14px;border-top:1px solid var(--border);text-align:center">
-        <button id="bets-toggle-btn" onclick="toggleBetsExpand()"
-          style="background:transparent;border:1px solid var(--border2);color:var(--muted);padding:5px 18px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;width:100%;transition:all 0.2s"
-          onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'"
-          onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">
-          ▼ SHOW ALL
-        </button>
-      </div>
     </div>
   </div>
 
@@ -313,9 +305,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <!-- Strategy signals -->
     <div class="panel">
       <div class="strat-tabs" id="strat-tabs">
-        <div class="strat-tab" id="tab-a">TREND</div>
-        <div class="strat-tab" id="tab-b">MOMENTUM</div>
-        <div class="strat-tab" id="tab-c">MEAN REV</div>
+        <div class="strat-tab" id="tab-a">RSI/EMA</div>
+        <div class="strat-tab" id="tab-b">WALLS</div>
+        <div class="strat-tab" id="tab-c">BREAKOUT</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:9px" id="auto-label">
           <span style="color:var(--muted)">AUTO</span>
         </div>
@@ -358,33 +350,18 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
       <div id="strat-status-a" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-a"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">TREND</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI(14) + EMA 9/21 crossover. Best in trending markets with clear directional momentum.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">RSI/EMA</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI(14) + EMA 9/21 crossover. Best in trending markets with clear directional momentum.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
       </div>
       <div id="strat-status-b" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-b"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold"</div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MOMENTUM</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Order book bid/ask wall analysis. Best in ranging/choppy markets for precision entry timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">WALL DETECTION</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Order book bid/ask wall analysis. Best in ranging/choppy markets for precision entry timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
       </div>
       <div id="strat-status-c" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-c"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold"</div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MEAN REVERT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Volatility breakout using ATR bands + volume surge. Best for catching early big moves.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">ATR BREAKOUT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Volatility breakout using ATR bands + volume surge. Best for catching early big moves.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
       </div>
     </div>
   </div>
-</div>
-
-<!-- Footer -->
-<div style="text-align:center;padding:20px 0 12px;border-top:1px solid var(--border);margin-top:16px">
-  <a href="https://x.com/0xblaq?s=11" target="_blank" rel="noopener noreferrer"
-     style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase;transition:all 0.2s;padding:6px 14px;border:1px solid var(--border);border-radius:3px"
-     onmouseover="this.style.color='var(--bright)';this.style.borderColor='var(--border2)';this.style.background='rgba(255,255,255,0.03)'"
-     onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-    </svg>
-    Built by @0xblaq
-  </a>
 </div>
 
 </div><!-- end wrap -->
@@ -444,36 +421,67 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
         <div class="sp-section-label">Manual Strategy Selection <span style="color:var(--dim);font-size:8px">(active when AUTO is OFF)</span></div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-a" style="display:inline-block"></span> Trend Scalp</div>
-            <div class="toggle-desc">EMA stack + RSI pullback timing. Rides uptrends & downtrends. Highest frequency.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-a" style="display:inline-block"></span> RSI / EMA Crossover</div>
+            <div class="toggle-desc">RSI(14) + EMA 9/21. Best for trending momentum scalps.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-rsi" onchange="saveSetting('strategies.TREND_SCALP', this.checked)">
+            <input type="checkbox" id="tog-rsi" onchange="saveSetting('strategies.RSI_EMA', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-b" style="display:inline-block"></span> Momentum</div>
-            <div class="toggle-desc">Price velocity + volume surge. Catches early breakouts and fast moves.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-b" style="display:inline-block"></span> Order Book Walls</div>
+            <div class="toggle-desc">Bid/ask wall detection. Best for ranging/choppy conditions.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-wall" onchange="saveSetting('strategies.MOMENTUM', this.checked)">
+            <input type="checkbox" id="tog-wall" onchange="saveSetting('strategies.WALL', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-c" style="display:inline-block"></span> Mean Revert</div>
-            <div class="toggle-desc">RSI extremes + Bollinger bands. Fades overextended moves. High win rate.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-c" style="display:inline-block"></span> ATR Breakout</div>
+            <div class="toggle-desc">Volatility breakout + volume surge. Best for catching big moves early.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-break" onchange="saveSetting('strategies.MEAN_REVERT', this.checked)">
+            <input type="checkbox" id="tog-break" onchange="saveSetting('strategies.BREAKOUT', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="sp-note" style="margin-top:10px">
-          AUTO mode picks the best strategy per market condition. TREND_SCALP fires most often — ideal for high-frequency scalping.
+          When AUTO is OFF, all enabled strategies still run — the one with highest confidence leads, others add 15–20% confirmation weight. Having all 3 on with AUTO off is a valid config.
+        </div>
+      </div>
+
+      <!-- Live config values -->
+      <div class="sp-section" style="margin-bottom:0">
+        <div class="sp-section-label">Live Values (from Railway env)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:10px">
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">STOP LOSS</div>
+            <div style="color:var(--red);font-weight:bold;font-size:13px" id="cfg-sl">—</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">TAKE PROFIT</div>
+            <div style="color:var(--green);font-weight:bold;font-size:13px" id="cfg-tp">—</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">MIN EDGE</div>
+            <div style="color:var(--yellow);font-weight:bold;font-size:13px" id="cfg-edge">—</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">MAX BET</div>
+            <div style="color:var(--blue);font-weight:bold;font-size:13px" id="cfg-bet">—</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">BANKROLL</div>
+            <div style="color:var(--cyan);font-weight:bold;font-size:13px" id="cfg-bank">—</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:3px">
+            <div style="font-size:8px;letter-spacing:1px;color:var(--muted);margin-bottom:3px">KELLY FRACTION</div>
+            <div style="color:var(--text);font-weight:bold;font-size:13px" id="cfg-kelly">—</div>
+          </div>
         </div>
       </div>
 
@@ -566,9 +574,9 @@ function closeOnOutside(e) { if(e.target===document.getElementById('settings-ove
 function syncToggles() {
   document.getElementById('tog-enabled').checked = currentSettings.enabled;
   document.getElementById('tog-auto').checked = currentSettings.autoMode;
-  document.getElementById('tog-rsi').checked = currentSettings.strategies?.TREND_SCALP ?? true;
-  document.getElementById('tog-wall').checked = currentSettings.strategies?.MOMENTUM ?? true;
-  document.getElementById('tog-break').checked = currentSettings.strategies?.MEAN_REVERT ?? true;
+  document.getElementById('tog-rsi').checked = currentSettings.strategies?.RSI_EMA ?? true;
+  document.getElementById('tog-wall').checked = currentSettings.strategies?.WALL ?? true;
+  document.getElementById('tog-break').checked = currentSettings.strategies?.BREAKOUT ?? true;
   // dryRun: checkbox ON = dry run mode
   const isDry = currentSettings.dryRun ?? true;
   document.getElementById('tog-dry').checked = isDry;
@@ -699,6 +707,23 @@ async function refresh() {
       pnlHistory.push({t:Date.now(),v:pnl});
       if(pnlHistory.length>200)pnlHistory.shift();
       drawChart();
+
+      // Populate live config in settings panel
+      if (root.config) {
+        const c = root.config;
+        const slEl = document.getElementById('cfg-sl');
+        const tpEl = document.getElementById('cfg-tp');
+        const edgeEl = document.getElementById('cfg-edge');
+        const betEl = document.getElementById('cfg-bet');
+        const bankEl = document.getElementById('cfg-bank');
+        const kellyEl = document.getElementById('cfg-kelly');
+        if (slEl) slEl.textContent = ((c.stopLoss||0.40)*100).toFixed(0)+'%';
+        if (tpEl) tpEl.textContent = ((c.tpLow||0.15)*100).toFixed(0)+'–'+((c.tpHigh||0.25)*100).toFixed(0)+'%';
+        if (edgeEl) edgeEl.textContent = ((c.minEdge||0.015)*100).toFixed(1)+'%';
+        if (betEl) betEl.textContent = '$'+(c.maxBetSize||8);
+        if (bankEl) bankEl.textContent = '$'+(c.bankroll||40);
+        if (kellyEl) kellyEl.textContent = ((c.kellyFraction||0.3)*100).toFixed(0)+'%';
+      }
     }
 
     // Price
@@ -732,14 +757,14 @@ async function refresh() {
       if(sig.oraclePrice)document.getElementById('oracle-p').textContent='CHAINLINK $'+fmt(sig.oraclePrice);
 
       // Strategy tabs
-      const stratColor = {TREND_SCALP:'a',MOMENTUM:'b',MEAN_REVERT:'c'};
+      const stratColor = {RSI_EMA:'a',WALL:'b',BREAKOUT:'c'};
       ['a','b','c'].forEach(x=>document.getElementById('tab-'+x).className='strat-tab');
       if(stratColor[strat]) {
         const tab = document.getElementById('tab-'+stratColor[strat]);
         tab.className='strat-tab active-'+stratColor[strat];
       }
       document.getElementById('tk-strat').textContent=strat+(isAuto?' [AUTO]':'');
-      document.getElementById('tk-strat').style.color=strat==='TREND_SCALP'?'var(--green)':strat==='MOMENTUM'?'var(--yellow)':'var(--blue)';
+      document.getElementById('tk-strat').style.color=strat==='RSI_EMA'?'var(--green)':strat==='WALL'?'var(--yellow)':'var(--blue)';
       document.getElementById('s-strat').textContent=(isAuto?'AUTO: ':'MANUAL: ')+strat;
       document.getElementById('strat-mode-label').textContent=isAuto?'AUTO MODE':'MANUAL MODE';
 
@@ -766,7 +791,7 @@ async function refresh() {
       ['a','b','c'].forEach(x=>{
         const el=document.getElementById('strat-status-'+x);
         const colors={a:'var(--green)',b:'var(--yellow)',c:'var(--blue)'};
-        const names={a:'TREND_SCALP',b:'MOMENTUM',c:'MEAN_REVERT'};
+        const names={a:'RSI_EMA',b:'WALL',c:'BREAKOUT'};
         const isActive=names[x]===strat;
         el.style.borderLeftColor=isActive?colors[x]:'var(--dim)';
         el.style.background=isActive?'rgba(0,0,0,0.5)':'rgba(0,0,0,0.3)';
@@ -809,7 +834,7 @@ async function refresh() {
       }).join('');
     }
 
-    // Bets — capped at 4, expandable, stable IDs so open details survive refresh
+    // Bets
     if(Array.isArray(betsR.value)&&betsR.value.length>0) {
       const bets = betsR.value;
       const wins = bets.filter(b=>b.status==='won').length;
@@ -817,20 +842,13 @@ async function refresh() {
       document.getElementById('bets-count').textContent = bets.length+' bets';
       document.getElementById('bets-stats').textContent = wins+'W / '+losses+'L';
 
-      const reversed = [...bets].reverse();
-      const showAll = window._betsExpanded || false;
-      const visible = showAll ? reversed : reversed.slice(0, 4);
-      const hasMore = reversed.length > 4;
-
-      // Remember which detail panels are open before re-render
-      const openIds = new Set();
-      document.querySelectorAll('.bet-detail.open').forEach(el => openIds.add(el.id));
-
-      document.getElementById('bets-list').innerHTML = visible.map((b) => {
+      document.getElementById('bets-list').innerHTML = [...bets].reverse().map((b,i) => {
         const sc = b.status==='won'?'s-won':b.status==='lost'?'s-lost':'s-open';
         const pnl = b.pnl != null ? b.pnl : null;
         const pnlStr = pnl != null ? (pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2) : 'OPEN';
-        const stratCol = b.strategy==='TREND_SCALP'?'var(--green)':b.strategy==='MOMENTUM'?'var(--yellow)':'var(--blue)';
+        const stratCol = b.strategy==='RSI_EMA'?'var(--green)':b.strategy==='WALL'?'var(--yellow)':'var(--blue)';
+
+        // Entry/exit details
         const entryPct = b.entryPrice ? (b.entryPrice*100).toFixed(1)+'¢' : '—';
         const exitPct = b.exitPrice ? (b.exitPrice*100).toFixed(1)+'¢' : '—';
         const edgePct = b.edge ? (b.edge*100).toFixed(1)+'%' : '—';
@@ -838,19 +856,20 @@ async function refresh() {
         const implPct = b.impliedProbability ? (b.impliedProbability*100).toFixed(0)+'%' : '—';
         const placedTime = b.placedAt ? new Date(b.placedAt).toLocaleTimeString() : '—';
         const closedTime = b.closedAt ? new Date(b.closedAt).toLocaleTimeString() : '—';
-        const detailId = 'bd_' + (b.id || b.placedAt || Math.random());
-        const isOpen = openIds.has(detailId);
+        const potPayout = b.betSize && b.entryPrice ? '$'+(b.betSize/b.entryPrice).toFixed(2) : '—';
+
+        // Build reasoning text
         const whyBet = buildReasoning(b);
 
-        return `<div class="bet-row" onclick="toggleBet('${detailId}')">
+        return `<div class="bet-row" onclick="toggleBet('bet_${i}')">
           <div class="bet-summary">
             <div class="bet-q">${(b.marketQuestion||'').slice(0,55)}</div>
             <div class="bet-c" style="color:${b.side==='YES'?'var(--green)':'var(--red)'}">${b.side}</div>
             <div class="bet-c">$${b.betSize}</div>
             <div class="bet-c ${sc}">${pnlStr}</div>
-            <div class="bet-chevron ${isOpen?'open':''}" id="chev_${detailId}">›</div>
+            <div class="bet-chevron" id="chev_${i}">›</div>
           </div>
-          <div class="bet-detail ${isOpen?'open':''}" id="${detailId}">
+          <div class="bet-detail" id="bet_${i}">
             <div class="bd-grid">
               <div class="bd-item" style="border-left-color:${stratCol}">
                 <div class="bd-label">Strategy</div>
@@ -858,7 +877,7 @@ async function refresh() {
               </div>
               <div class="bd-item">
                 <div class="bd-label">Status</div>
-                <div class="bd-val ${sc}">${(b.status||'open').toUpperCase()}${b.exitReason?' ['+b.exitReason.toUpperCase()+']':''}</div>
+                <div class="bd-val ${sc}">${b.status?.toUpperCase()||'OPEN'}${b.exitReason?' ['+b.exitReason.toUpperCase()+']':''}</div>
               </div>
               <div class="bd-item">
                 <div class="bd-label">Entry Price</div>
@@ -866,15 +885,15 @@ async function refresh() {
               </div>
               <div class="bd-item">
                 <div class="bd-label">Exit Price</div>
-                <div class="bd-val">${exitPct}${b.closedAt?' <span style="color:var(--muted);font-size:9px">@ '+closedTime+'</span>':''}</div>
+                <div class="bd-val">${exitPct} <span style="color:var(--muted);font-size:9px">${b.closedAt?'@ '+closedTime:''}</span></div>
               </div>
               <div class="bd-item">
                 <div class="bd-label">Edge Detected</div>
                 <div class="bd-val" style="color:var(--yellow)">${edgePct}</div>
               </div>
               <div class="bd-item">
-                <div class="bd-label">Bet → Potential Win</div>
-                <div class="bd-val">$${b.betSize} <span style="color:var(--muted);font-size:9px">→ $${b.betSize&&b.entryPrice?(b.betSize/b.entryPrice).toFixed(2):'—'}</span></div>
+                <div class="bd-label">Bet Size</div>
+                <div class="bd-val">$${b.betSize} <span style="color:var(--muted);font-size:9px">→ win $${(b.betSize&&b.entryPrice?(b.betSize/b.entryPrice).toFixed(2):'—')}</span></div>
               </div>
               <div class="bd-item">
                 <div class="bd-label">True Prob</div>
@@ -882,7 +901,7 @@ async function refresh() {
               </div>
               <div class="bd-item">
                 <div class="bd-label">P&L</div>
-                <div class="bd-val ${sc}">${pnlStr}${pnl!=null&&b.betSize?' <span style="font-size:9px">('+( pnl>=0?'+':''+(pnl/b.betSize*100).toFixed(0))+'%)</span>':''}</div>
+                <div class="bd-val ${sc}">${pnlStr} ${pnl!=null&&b.betSize?(pnl>=0?'+':'')+'('+(pnl/b.betSize*100).toFixed(0)+'%)':''}</div>
               </div>
             </div>
             <div class="bd-reasoning">
@@ -891,21 +910,7 @@ async function refresh() {
             </div>
           </div>
         </div>`;
-      }).join('') || '<div class="empty">NO BETS YET</div>';
-
-      // Show/hide footer button
-      const footer = document.getElementById('bets-footer');
-      const btn = document.getElementById('bets-toggle-btn');
-      if (hasMore) {
-        footer.style.display = 'block';
-        if (showAll) {
-          btn.innerHTML = '▲ SHOW LESS';
-        } else {
-          btn.innerHTML = '▼ SHOW ALL (' + (reversed.length - 4) + ' more)';
-        }
-      } else {
-        footer.style.display = 'none';
-      }
+      }).join('');
     }
 
     // Server log
@@ -920,24 +925,15 @@ async function refresh() {
   }
 }
 
-// Global expand state
-window._betsExpanded = false;
-
-function toggleBetsExpand() {
-  window._betsExpanded = !window._betsExpanded;
-  // Trigger immediate re-render without waiting for next poll
-  refresh();
-}
-
 function toggleBet(id) {
   const detail = document.getElementById(id);
-  const chev = document.getElementById('chev_' + id);
+  const idx = id.replace('bet_','');
+  const chev = document.getElementById('chev_'+idx);
   if (!detail) return;
   const isOpen = detail.classList.contains('open');
-  // Close all others first
+  // Close all others
   document.querySelectorAll('.bet-detail.open').forEach(el => el.classList.remove('open'));
   document.querySelectorAll('.bet-chevron.open').forEach(el => el.classList.remove('open'));
-  // Toggle clicked one
   if (!isOpen) {
     detail.classList.add('open');
     if (chev) chev.classList.add('open');
@@ -953,14 +949,12 @@ function buildReasoning(b) {
   const implP = b.impliedProbability ? (b.impliedProbability*100).toFixed(0) : '?';
 
   // Strategy explanation
-  if (strat === 'TREND_SCALP') {
-    lines.push(`<b style="color:var(--green)">TREND SCALP</b>: EMA stack confirmed a ${side==='YES'?'bullish uptrend':'bearish downtrend'} — RSI ${side==='YES'?'pulled back to support then bounced':'bounced to resistance then rejected'}. Entry timed at optimal point in the trend.`);
-  } else if (strat === 'MOMENTUM') {
-    lines.push(`<b style="color:var(--yellow)">MOMENTUM</b>: Price velocity surge detected with elevated volume. Bot entered early on an accelerating ${side==='YES'?'upside':'downside'} move before markets repriced.`);
-  } else if (strat === 'MEAN_REVERT') {
-    lines.push(`<b style="color:var(--blue)">MEAN REVERT</b>: RSI reached ${side==='YES'?'oversold':'overbought'} extreme near Bollinger ${side==='YES'?'lower':'upper'} band — high-probability fade of an overextended move.`);
-  } else {
-    lines.push(`Strategy: <b>${strat}</b> detected a ${side==='YES'?'bullish':'bearish'} signal.`);
+  if (strat === 'BREAKOUT') {
+    lines.push(`<b style="color:var(--blue)">ATR BREAKOUT</b> strategy detected BTC breaking outside its ATR volatility band with elevated volume. Price action confirmed a directional move.`);
+  } else if (strat === 'RSI_EMA') {
+    lines.push(`<b style="color:var(--green)">RSI/EMA</b> strategy: RSI momentum and EMA 9/21 crossover alignment indicated a ${side==='YES'?'bullish':'bearish'} directional bias.`);
+  } else if (strat === 'WALL') {
+    lines.push(`<b style="color:var(--yellow)">WALL DETECTION</b> strategy: Order book analysis showed significant ${side==='YES'?'bid support below price (bullish)':'ask resistance above price (bearish)'}.`);
   }
 
   // Edge explanation
