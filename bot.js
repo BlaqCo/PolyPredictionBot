@@ -92,7 +92,18 @@ export async function runScanCycle() {
 
     try {
       const order = await placeOrder({ tokenId: token.tokenId || token.token_id, side: "BUY", size: finalBet, price: entryPrice, marketQuestion: market.question });
-      recordBet({ market, side: decision.side, betSize: finalBet, edge: decision.edge, trueProbability: decision.trueProb, impliedProbability: decision.impliedProb, orderId: order.orderID || order.id, entryPrice });
+      recordBet({
+        market,
+        side: decision.side,
+        betSize: finalBet,
+        edge: decision.edge,
+        trueProbability: decision.trueProb,
+        impliedProbability: decision.impliedProb,
+        orderId: order.orderID || order.id,
+        entryPrice,
+        strategy: signals.activeStrategy,
+        reasoning: decision.reasoning,
+      });
       betsPlaced++;
       console.log(`  ✅ ENTRY ${decision.side} $${finalBet.toFixed(2)} @ ${(entryPrice*100).toFixed(1)}¢ | ${minLeft}min | strat:${signals.activeStrategy} | ${market.question?.slice(0,40)}`);
     } catch (err) { console.error(`  ❌ Order: ${err.message}`); }
