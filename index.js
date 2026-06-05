@@ -8,60 +8,42 @@ dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const config = {
+export const config = {
   bot: {
     maxBetSize: parseFloat(process.env.MAX_BET_SIZE || "10"),
     minEdge: parseFloat(process.env.MIN_EDGE || "0.05"),
     kellyFraction: parseFloat(process.env.KELLY_FRACTION || "0.25"),
-    scanIntervalMinutes: parseInt(process.env.SCAN_INTERVAL_MINUTES || "15"),
+    scanIntervalSeconds: parseInt(process.env.SCAN_INTERVAL_SECONDS || "8"),
     bankroll: parseFloat(process.env.BANKROLL || "100"),
     dryRun: process.env.DRY_RUN !== "false",
   },
   port: parseInt(process.env.PORT || "3000"),
 };
 
-export { config };
+console.log("🚀 PolyBot BTC");
+console.log(`   Mode: ${config.bot.dryRun ? "DRY RUN" : "LIVE"} | Bankroll: $${config.bot.bankroll} | Scan: every ${config.bot.scanIntervalSeconds}s`);
 
-console.log("🚀 PolyBot BTC starting...");
-console.log(`   Mode: ${config.bot.dryRun ? "🧪 DRY RUN" : "💰 LIVE"}`);
-console.log(`   Bankroll: $${config.bot.bankroll} | Max bet: $${config.bot.maxBetSize}`);
-
-// Last known signal state — updated each scan
-let lastSignals = null;
-let lastMarkets = [];
+let lastSignals = null, lastMarkets = [], isScanning = false;
 
 import("./bot.js").then(({ runScanCycle }) => {
   const app = express();
   app.use(express.json());
 
-  // Dashboard UI
   app.get("/dashboard", (req, res) => {
-    try {
-      const html = readFileSync(join(__dirname, "dashboard.html"), "utf8");
-      res.setHeader("Content-Type", "text/html");
-      res.send(html);
-    } catch {
-      res.status(404).send("Dashboard not found — make sure dashboard.html is in the repo root");
-    }
+    try { res.setHeader("Content-Type","text/html"); res.send(readFileSync(join(__dirname,"dashboard.html"),"utf8")); }
+    catch { res.status(404).send("dashboard.html not found"); }
   });
 
-  // Health check
-  app.get("/health", (req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
+  app.get("/health", (_, res) => res.json({ status: "ok" }));
 
-  // Stats
-  app.get("/", async (req, res) => {
+  app.get("/", async (_, res) => {
     const { getStats } = await import("./state.js");
     res.json({ bot: "PolyBot BTC", mode: config.bot.dryRun ? "DRY_RUN" : "LIVE", config: config.bot, stats: getStats() });
   });
 
-  // Bets
-  app.get("/bets", async (req, res) => {
-    const { getAllBets } = await import("./state.js");
-    res.json(getAllBets());
-  });
+  app.get("/bets", async (_, res) => { const { getAllBets } = await import("./state.js"); res.json(getAllBets()); });
 
-  // Live price
-  app.get("/price", async (req, res) => {
+  app.get("/price", async (_, res) => {
     try {
       const { fetchCurrentPrice, fetch24hStats } = await import("./signals.js");
       const [price, stats] = await Promise.all([fetchCurrentPrice(), fetch24hStats()]);
@@ -69,66 +51,46 @@ import("./bot.js").then(({ runScanCycle }) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // Last signal state (for dashboard)
-  app.get("/signals", (req, res) => {
-    if (!lastSignals) return res.json({});
-    res.json(lastSignals);
-  });
+  app.get("/signals", (_, res) => res.json(lastSignals || {}));
+  app.get("/markets", (_, res) => res.json(lastMarkets));
 
-  // Last markets state (for dashboard)
-  app.get("/markets", (req, res) => res.json(lastMarkets));
+  app.listen(config.port, () => console.log(`🌐 Port ${config.port} | /dashboard`));
 
-  // Manual scan trigger
-  app.post("/scan", async (req, res) => {
-    res.json({ message: "Scan triggered", timestamp: new Date().toISOString() });
-    runScanCycleWithCapture().catch(console.error);
-  });
-
-  app.listen(config.port, () => {
-    console.log(`🌐 Server on port ${config.port}`);
-    console.log(`   Dashboard: /dashboard`);
-    console.log(`   Stats:     /`);
-    console.log(`   Price:     /price`);
-    console.log(`   Bets:      /bets`);
-    console.log(`   Scan:      POST /scan`);
-  });
-
-  const mins = config.bot.scanIntervalMinutes;
-  const cronExpr = mins < 60 ? `*/${mins} * * * *` : `0 */${Math.floor(mins / 60)} * * *`;
-  cron.schedule(cronExpr, () => runScanCycleWithCapture().catch(console.error));
-
-  // Wrapper that captures signal/market state for the dashboard
-  async function runScanCycleWithCapture() {
+  // ── Scan every N seconds ──
+  async function scan() {
+    if (isScanning) return;
+    isScanning = true;
     try {
-      const { computeSignals } = await import("./signals.js");
+      const { computeSignals, fetchOrderBook, detectWalls } = await import("./signals.js");
       const { fetchBTCMarkets } = await import("./polymarket.js");
       const { sizeBet } = await import("./kelly.js");
       const { scoreSentiment } = await import("./sentiment.js");
 
-      const signals = await computeSignals();
-      lastSignals = signals;
+      const [sig, book] = await Promise.allSettled([computeSignals(), fetchOrderBook(150)]);
+      if (sig.status === "fulfilled") {
+        const walls = detectWalls(book.status === "fulfilled" ? book.value : null, sig.value.currentPrice);
+        lastSignals = { ...sig.value, walls };
+      }
 
       const markets = await fetchBTCMarkets();
+      if (lastSignals) {
+        const enriched = await Promise.all(markets.map(async m => {
+          let sentiment = { sentimentBias: 0 };
+          try { sentiment = await scoreSentiment(lastSignals, m); } catch {}
+          return { ...m, _decision: sizeBet(lastSignals, sentiment, m) };
+        }));
+        lastMarkets = enriched;
+      }
 
-      // Attach decision preview to each market for the dashboard
-      const enriched = await Promise.all(markets.map(async m => {
-        let sentiment = { sentimentBias: 0 };
-        try { sentiment = await scoreSentiment(signals, m); } catch {}
-        const decision = sizeBet(signals, sentiment, m);
-        return { ...m, _decision: decision };
-      }));
-      lastMarkets = enriched;
-
+      await runScanCycle();
     } catch (err) {
-      console.error("Signal capture error:", err.message);
+      console.error("Scan error:", err.message);
+    } finally {
+      isScanning = false;
     }
-    return runScanCycle();
   }
 
-  console.log("⚡ Running initial scan...");
-  runScanCycleWithCapture().catch(console.error);
-
-}).catch(err => {
-  console.error("Failed to load bot module:", err.message);
-  process.exit(1);
-});
+  setInterval(scan, config.bot.scanIntervalSeconds * 1000);
+  console.log(`⚡ Scanning every ${config.bot.scanIntervalSeconds}s`);
+  scan();
+}).catch(err => { console.error("Boot failed:", err.message); process.exit(1); });
