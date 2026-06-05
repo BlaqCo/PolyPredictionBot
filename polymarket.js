@@ -5,7 +5,15 @@
 
 import axios from "axios";
 
-const DRY_RUN = process.env.DRY_RUN !== "false";
+// Import botSettings so placeOrder respects runtime dry/live toggle
+let _botSettings = null;
+async function getDryRun() {
+  if (!_botSettings) {
+    try { const m = await import("./bot.js"); _botSettings = m.botSettings; } catch {}
+  }
+  // Fall back to env var if module not loaded yet
+  return _botSettings?.dryRun ?? (process.env.DRY_RUN !== "false");
+}
 const BTC_KW = ["bitcoin", "btc", "will btc", "will bitcoin", "bitcoin above", "bitcoin below", "btc above", "btc below", "btc price", "bitcoin price"];
 
 export async function fetchBTCMarkets() {
@@ -30,15 +38,16 @@ export async function fetchBTCMarkets() {
 }
 
 export async function placeOrder({ tokenId, side, size, price, marketQuestion }) {
+  const dryRun = await getDryRun();
   const log = {
-    mode: DRY_RUN ? "DRY_RUN" : "LIVE",
+    mode: dryRun ? "DRY_RUN" : "LIVE",
     tokenId, side, size: parseFloat(size.toFixed(4)),
     price: parseFloat(price.toFixed(4)),
     marketQuestion,
     timestamp: new Date().toISOString(),
   };
 
-  if (DRY_RUN) {
+  if (dryRun) {
     console.log(`    🧪 DRY ${side} $${size.toFixed(2)} @ ${(price*100).toFixed(1)}¢`);
     return { ...log, orderId: `dry_${side}_${Date.now()}`, status: "simulated" };
   }
