@@ -239,17 +239,13 @@ export async function placeOrder({ tokenId, side, size, price, marketQuestion })
 }
 
 export async function getBalance() {
-  // In dry run, return running balance from state
-  // In live, this would query Polymarket wallet
   const dryRun = await getDryRun();
   if (dryRun) {
     try {
-      const { getStats } = await import("./state.js");
-      const stats = getStats();
-      const startingBalance = parseFloat(process.env.BANKROLL || "40");
-      // Balance = starting + realized P&L
-      return Math.max(0, startingBalance + parseFloat(stats.pnl || 0));
+      const { getDryBalance } = await import("./state.js");
+      return getDryBalance();
     } catch { return parseFloat(process.env.BANKROLL || "40"); }
   }
+  // Live: would query Polymarket wallet — for now use env var
   return parseFloat(process.env.BANKROLL || "40");
 }
