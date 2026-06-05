@@ -14,7 +14,7 @@ import { scoreSentiment } from "./sentiment.js";
 import { sizeBet } from "./kelly.js";
 import { fetchBTCMarkets, placeOrder, getBalance } from "./polymarket.js";
 import { recordBet, hasActiveBet, recordScan, getStats } from "./state.js";
-import { config } from "../config/index.js";
+import { config } from "./config/index.js";
 
 export async function runScanCycle() {
   console.log(`\n${"─".repeat(60)}`);
