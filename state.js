@@ -1,7 +1,11 @@
 /**
  * state.js
- * Tracks bets, P&L, and open positions for scalp exit monitoring
+ * Dry run always starts with a fresh $40 balance on boot.
+ * Live mode tracks real P&L against actual deposited balance.
  */
+
+const STARTING_BALANCE = parseFloat(process.env.BANKROLL || "40");
+const IS_DRY = process.env.DRY_RUN !== "false";
 
 const state = {
   bets: [],
@@ -9,12 +13,16 @@ const state = {
   totalWagered: 0,
   wins: 0,
   losses: 0,
-  scalps: 0,          // exits via take-profit (not waiting for resolution)
+  scalps: 0,
   scansCompleted: 0,
   startedAt: new Date().toISOString(),
   lastScan: null,
-  activeBets: new Map(), // conditionId → bet
+  activeBets: new Map(),
+  // Dry run tracks remaining balance explicitly
+  dryBalance: STARTING_BALANCE,
 };
+
+console.log(`💰 State initialized | Starting balance: $${STARTING_BALANCE} | Mode: ${IS_DRY ? "DRY RUN" : "LIVE"}`);
 
 export function recordBet({ market, side, betSize, edge, trueProbability, impliedProbability, orderId, entryPrice }) {
   const bet = {
@@ -27,14 +35,16 @@ export function recordBet({ market, side, betSize, edge, trueProbability, implie
     edge,
     trueProbability,
     impliedProbability,
-    entryPrice: entryPrice || impliedProbability, // price we paid (0.0–1.0)
+    entryPrice: entryPrice || impliedProbability,
     placedAt: new Date().toISOString(),
     status: "open",
     pnl: null,
     exitReason: null,
   };
+
   state.bets.push(bet);
   state.totalWagered += betSize;
+  state.dryBalance -= betSize; // deduct from dry balance immediately
   state.activeBets.set(bet.marketConditionId, bet);
   return bet;
 }
@@ -44,16 +54,16 @@ export function closeBet(conditionId, { exitPrice, reason, pnl }) {
   if (!bet) return null;
 
   bet.exitPrice = exitPrice;
-  bet.exitReason = reason; // 'take_profit' | 'stop_loss' | 'resolution'
+  bet.exitReason = reason;
   bet.pnl = pnl;
   bet.closedAt = new Date().toISOString();
 
-  if (pnl > 0) { state.wins++; bet.status = 'won'; }
-  else { state.losses++; bet.status = 'lost'; }
-
-  if (reason === 'take_profit') state.scalps++;
+  if (pnl > 0) { state.wins++; bet.status = "won"; }
+  else { state.losses++; bet.status = "lost"; }
+  if (reason === "take_profit") state.scalps++;
 
   state.pnl += pnl;
+  state.dryBalance += bet.betSize + pnl; // return stake + profit (or stake - loss)
   state.activeBets.delete(conditionId);
   return bet;
 }
@@ -61,11 +71,9 @@ export function closeBet(conditionId, { exitPrice, reason, pnl }) {
 export function hasActiveBet(conditionId) { return state.activeBets.has(conditionId); }
 export function getActiveBet(conditionId) { return state.activeBets.get(conditionId); }
 export function getAllActiveBets() { return Array.from(state.activeBets.values()); }
+export function recordScan() { state.scansCompleted++; state.lastScan = new Date().toISOString(); }
 
-export function recordScan() {
-  state.scansCompleted++;
-  state.lastScan = new Date().toISOString();
-}
+export function getDryBalance() { return Math.max(0, state.dryBalance); }
 
 export function getStats() {
   const total = state.wins + state.losses;
@@ -81,7 +89,9 @@ export function getStats() {
     losses: state.losses,
     scalps: state.scalps,
     winRate: total > 0 ? ((state.wins / total) * 100).toFixed(1) + "%" : "N/A",
-    recentBets: state.bets.slice(-10).reverse(),
+    startingBalance: STARTING_BALANCE,
+    currentBalance: Math.max(0, STARTING_BALANCE + state.pnl).toFixed(2),
+    dryBalance: getDryBalance().toFixed(2),
   };
 }
 
