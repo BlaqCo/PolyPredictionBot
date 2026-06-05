@@ -1,21 +1,84 @@
 import axios from "axios";
 
-const BASE = process.env.BINANCE_BASE_URL || "https://api.binance.com";
+// Primary: Binance. Fallback: CoinGecko (no geo-block, no auth needed)
+const BINANCE = process.env.BINANCE_BASE_URL || "https://api.binance.com";
+const COINGECKO = "https://api.coingecko.com/api/v3";
 
-export async function fetchKlines(symbol = "BTCUSDT", interval = "15m", limit = 100) {
-  const { data } = await axios.get(`${BASE}/api/v3/klines`, { params: { symbol, interval, limit } });
-  return data.map(k => ({ open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5]) }));
+async function binanceFetch(path, params) {
+  const res = await axios.get(`${BINANCE}${path}`, { params, timeout: 8000 });
+  return res.data;
 }
 
-export async function fetchCurrentPrice(symbol = "BTCUSDT") {
-  const { data } = await axios.get(`${BASE}/api/v3/ticker/price`, { params: { symbol } });
-  return parseFloat(data.price);
+async function coingeckoPrice() {
+  const { data } = await axios.get(`${COINGECKO}/simple/price`, {
+    params: { ids: "bitcoin", vs_currencies: "usd", include_24hr_change: true, include_24hr_vol: true, include_high_low: true },
+    timeout: 8000,
+  });
+  return data.bitcoin;
 }
 
-export async function fetch24hStats(symbol = "BTCUSDT") {
-  const { data } = await axios.get(`${BASE}/api/v3/ticker/24hr`, { params: { symbol } });
-  return { priceChangePercent: parseFloat(data.priceChangePercent), high: parseFloat(data.highPrice), low: parseFloat(data.lowPrice), volume: parseFloat(data.volume), quoteVolume: parseFloat(data.quoteAssetVolume) };
+export async function fetchCurrentPrice() {
+  try {
+    const d = await binanceFetch("/api/v3/ticker/price", { symbol: "BTCUSDT" });
+    return parseFloat(d.price);
+  } catch {
+    const d = await coingeckoPrice();
+    return d.usd;
+  }
 }
+
+export async function fetch24hStats() {
+  try {
+    const d = await binanceFetch("/api/v3/ticker/24hr", { symbol: "BTCUSDT" });
+    return {
+      priceChangePercent: parseFloat(d.priceChangePercent),
+      high: parseFloat(d.highPrice),
+      low: parseFloat(d.lowPrice),
+      volume: parseFloat(d.volume),
+      quoteVolume: parseFloat(d.quoteAssetVolume),
+    };
+  } catch {
+    const d = await coingeckoPrice();
+    return {
+      priceChangePercent: d.usd_24h_change || 0,
+      high: d.usd_24h_high || d.usd,
+      low: d.usd_24h_low || d.usd,
+      volume: d.usd_24h_vol || 0,
+      quoteVolume: d.usd_24h_vol || 0,
+    };
+  }
+}
+
+async function fetchKlinesBinance(symbol = "BTCUSDT", interval = "15m", limit = 100) {
+  const data = await binanceFetch("/api/v3/klines", { symbol, interval, limit });
+  return data.map(k => ({
+    open: parseFloat(k[1]), high: parseFloat(k[2]),
+    low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5]),
+  }));
+}
+
+async function fetchKlinesCoinGecko() {
+  // CoinGecko hourly OHLC — synthetic 15m equivalent using last 100 hours → 100 candles
+  const { data } = await axios.get(`${COINGECKO}/coins/bitcoin/ohlc`, {
+    params: { vs_currency: "usd", days: 2 },
+    timeout: 10000,
+  });
+  // data = [[timestamp, open, high, low, close], ...]
+  return data.slice(-100).map(c => ({
+    open: c[1], high: c[2], low: c[3], close: c[4], volume: 0,
+  }));
+}
+
+export async function fetchKlines() {
+  try {
+    return await fetchKlinesBinance();
+  } catch {
+    console.log("⚠️  Binance geo-blocked, using CoinGecko OHLC");
+    return await fetchKlinesCoinGecko();
+  }
+}
+
+// ── Indicators ────────────────────────────────────────────────
 
 function calcRSI(closes, period = 14) {
   if (closes.length < period + 1) return 50;
@@ -41,7 +104,9 @@ function calcEMA(closes, period) {
 }
 
 function calcATR(candles, period = 14) {
-  const trs = candles.slice(1).map((c, i) => Math.max(c.high - c.low, Math.abs(c.high - candles[i].close), Math.abs(c.low - candles[i].close)));
+  const trs = candles.slice(1).map((c, i) =>
+    Math.max(c.high - c.low, Math.abs(c.high - candles[i].close), Math.abs(c.low - candles[i].close))
+  );
   return trs.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
 
@@ -49,6 +114,7 @@ export async function computeSignals() {
   const [candles, stats] = await Promise.all([fetchKlines(), fetch24hStats()]);
   const closes = candles.map(c => c.close);
   const currentPrice = closes[closes.length - 1];
+
   const rsi = calcRSI(closes);
   const ema9 = calcEMA(closes, 9);
   const ema21 = calcEMA(closes, 21);
@@ -66,5 +132,9 @@ export async function computeSignals() {
   const avgStr = scores.map(Math.abs).reduce((a, b) => a + b, 0) / scores.length;
   const confidence = Math.min(1, allSame ? avgStr : avgStr * 0.5);
 
-  return { bias: Math.max(-1, Math.min(1, bias)), confidence, rsi, ema9, ema21, atr, currentPrice, momentum5, stats, components: { rsiScore, emaScore, momentumScore, trendScore } };
+  return {
+    bias: Math.max(-1, Math.min(1, bias)),
+    confidence, rsi, ema9, ema21, atr, currentPrice, momentum5, stats,
+    components: { rsiScore, emaScore, momentumScore, trendScore },
+  };
 }
