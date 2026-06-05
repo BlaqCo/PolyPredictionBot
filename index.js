@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const config = {
   bot: {
     maxBetSize: parseFloat(process.env.MAX_BET_SIZE || "8"),
-    minEdge: parseFloat(process.env.MIN_EDGE || "0.02"),
+    minEdge: parseFloat(process.env.MIN_EDGE || "0.015"),
     kellyFraction: parseFloat(process.env.KELLY_FRACTION || "0.30"),
     scanIntervalSeconds: parseInt(process.env.SCAN_INTERVAL_SECONDS || "8"),
     bankroll: parseFloat(process.env.BANKROLL || "40"),
