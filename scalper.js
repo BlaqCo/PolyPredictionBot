@@ -7,7 +7,7 @@ import { getAllActiveBets, closeBet } from "./state.js";
 
 const TP_LOW    = parseFloat(process.env.TP_LOW    || "0.15");
 const TP_HIGH   = parseFloat(process.env.TP_HIGH   || "0.25");
-const STOP_LOSS = parseFloat(process.env.STOP_LOSS || "0.08");
+const STOP_LOSS = parseFloat(process.env.STOP_LOSS || "0.40");
 const TRAIL_AT  = parseFloat(process.env.TRAIL_AFTER || "0.10");
 const TRAIL_PCT = parseFloat(process.env.TRAIL_PCT   || "0.05");
 
