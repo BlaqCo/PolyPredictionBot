@@ -20,14 +20,14 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .wrap{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:16px;}
 
 /* Header */
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 0 14px;border-bottom:1px solid var(--border2);margin-bottom:16px;gap:8px;flex-wrap:nowrap;}
-.logo{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow:hidden;}
+header{display:grid;grid-template-columns:1fr auto;align-items:center;padding:10px 0 14px;border-bottom:1px solid var(--border2);margin-bottom:16px;gap:8px;}
+.logo{display:flex;align-items:center;gap:10px;}
 .logo-hex::before{content:'⬡';font-size:42px;line-height:1;color:var(--green);text-shadow:0 0 20px var(--green),0 0 40px rgba(0,255,157,0.3);animation:hex 3s ease-in-out infinite;}
 @keyframes hex{0%,100%{text-shadow:0 0 20px var(--green),0 0 40px rgba(0,255,157,0.3);}50%{text-shadow:0 0 35px var(--green),0 0 70px rgba(0,255,157,0.5);}}
 .logo-text h1{font-family:'Orbitron';font-size:20px;font-weight:900;color:var(--bright);letter-spacing:4px;}
 .logo-text h1 span{color:var(--green);}
 .logo-text .sub{font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:2px;}
-.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;white-space:nowrap;}
+.hdr-right{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
 .badge{padding:3px 10px;border-radius:2px;font-size:9px;letter-spacing:2px;font-weight:bold;text-transform:uppercase;}
 .badge-dry{background:rgba(255,210,0,0.08);color:var(--yellow);border:1px solid rgba(255,210,0,0.2);}
 .badge-live{background:rgba(0,255,157,0.08);color:var(--green);border:1px solid rgba(0,255,157,0.25);}
@@ -203,13 +203,15 @@ header{display:flex;align-items:center;justify-content:space-between;padding:10p
 
 @media(max-width:1000px){.main{grid-template-columns:1fr;}.stats{grid-template-columns:repeat(3,1fr);}.bottom{grid-template-columns:1fr;}}
 @media(max-width:600px){
-  .logo-text h1{font-size:15px;letter-spacing:2px;}
+  header{grid-template-columns:1fr;}
+  .hdr-right{justify-content:flex-start;flex-wrap:wrap;gap:6px;}
+  .logo-text h1{font-size:16px;letter-spacing:2px;}
   .logo-text .sub{display:none;}
-  .logo-hex::before{font-size:30px;}
-  .logo{gap:8px;}
-  .badge{padding:2px 8px;font-size:8px;}
-  #last-upd{font-size:8px;}
+  .logo-hex::before{font-size:32px;}
+  .badge{padding:2px 8px;font-size:8px;letter-spacing:1px;}
+  #last-upd{font-size:9px;}
   .gear-btn{width:28px;height:28px;font-size:14px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
 }
 </style>
 </head>
