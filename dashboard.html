@@ -281,11 +281,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       </div>
       <div class="bets-hdr"><span>Market</span><span style="text-align:right">Side</span><span style="text-align:right">Size</span><span style="text-align:right">P&L</span><span></span></div>
       <div id="bets-list"><div class="empty">NO BETS YET</div></div>
-      <div id="bets-show-more" style="display:none;padding:10px 14px;border-top:1px solid var(--border);text-align:center">
-        <button onclick="toggleShowAll()" id="show-more-btn" style="background:transparent;border:1px solid var(--border2);color:var(--muted);padding:5px 16px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">
-          ▼ SHOW ALL <span id="show-more-count"></span>
-        </button>
-      </div>
     </div>
   </div>
 
@@ -367,6 +362,19 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       </div>
     </div>
   </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align:center;padding:20px 0 12px;border-top:1px solid var(--border);margin-top:16px">
+  <a href="https://x.com/0xblaq?s=11" target="_blank" rel="noopener noreferrer"
+     style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase;transition:all 0.2s;padding:6px 14px;border:1px solid var(--border);border-radius:3px"
+     onmouseover="this.style.color='var(--bright)';this.style.borderColor='var(--border2)';this.style.background='rgba(255,255,255,0.03)'"
+     onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
+    Built by @0xblaq
+  </a>
 </div>
 
 </div><!-- end wrap -->
@@ -791,7 +799,7 @@ async function refresh() {
       }).join('');
     }
 
-    // Bets — smart render: preserves open detail panels, caps at 4 by default
+    // Bets
     if(Array.isArray(betsR.value)&&betsR.value.length>0) {
       const bets = betsR.value;
       const wins = bets.filter(b=>b.status==='won').length;
@@ -799,20 +807,13 @@ async function refresh() {
       document.getElementById('bets-count').textContent = bets.length+' bets';
       document.getElementById('bets-stats').textContent = wins+'W / '+losses+'L';
 
-      const reversed = [...bets].reverse();
-      const showAll = window._betsShowAll || false;
-      const visible = showAll ? reversed : reversed.slice(0, 4);
-      const hidden = reversed.length - 4;
-
-      // Track which detail panels are currently open — don't close them on refresh
-      const currentlyOpen = new Set();
-      document.querySelectorAll('.bet-detail.open').forEach(el => currentlyOpen.add(el.id));
-
-      const html = visible.map((b, i) => {
+      document.getElementById('bets-list').innerHTML = [...bets].reverse().map((b,i) => {
         const sc = b.status==='won'?'s-won':b.status==='lost'?'s-lost':'s-open';
         const pnl = b.pnl != null ? b.pnl : null;
         const pnlStr = pnl != null ? (pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2) : 'OPEN';
         const stratCol = b.strategy==='RSI_EMA'?'var(--green)':b.strategy==='WALL'?'var(--yellow)':'var(--blue)';
+
+        // Entry/exit details
         const entryPct = b.entryPrice ? (b.entryPrice*100).toFixed(1)+'¢' : '—';
         const exitPct = b.exitPrice ? (b.exitPrice*100).toFixed(1)+'¢' : '—';
         const edgePct = b.edge ? (b.edge*100).toFixed(1)+'%' : '—';
@@ -820,19 +821,20 @@ async function refresh() {
         const implPct = b.impliedProbability ? (b.impliedProbability*100).toFixed(0)+'%' : '—';
         const placedTime = b.placedAt ? new Date(b.placedAt).toLocaleTimeString() : '—';
         const closedTime = b.closedAt ? new Date(b.closedAt).toLocaleTimeString() : '—';
-        const detailId = 'bet_detail_' + (b.id || i);
-        const isOpen = currentlyOpen.has(detailId);
+        const potPayout = b.betSize && b.entryPrice ? '$'+(b.betSize/b.entryPrice).toFixed(2) : '—';
+
+        // Build reasoning text
         const whyBet = buildReasoning(b);
 
-        return `<div class="bet-row" onclick="toggleBet('${detailId}')">
+        return `<div class="bet-row" onclick="toggleBet('bet_${i}')">
           <div class="bet-summary">
             <div class="bet-q">${(b.marketQuestion||'').slice(0,55)}</div>
             <div class="bet-c" style="color:${b.side==='YES'?'var(--green)':'var(--red)'}">${b.side}</div>
             <div class="bet-c">$${b.betSize}</div>
             <div class="bet-c ${sc}">${pnlStr}</div>
-            <div class="bet-chevron ${isOpen?'open':''}" id="chev_${detailId}">›</div>
+            <div class="bet-chevron" id="chev_${i}">›</div>
           </div>
-          <div class="bet-detail ${isOpen?'open':''}" id="${detailId}">
+          <div class="bet-detail" id="bet_${i}">
             <div class="bd-grid">
               <div class="bd-item" style="border-left-color:${stratCol}">
                 <div class="bd-label">Strategy</div>
@@ -874,21 +876,6 @@ async function refresh() {
           </div>
         </div>`;
       }).join('');
-
-      document.getElementById('bets-list').innerHTML = html || '<div class="empty">NO BETS YET</div>';
-
-      // Show/hide "show more" button
-      const moreBtn = document.getElementById('bets-show-more');
-      if (hidden > 0 && !showAll) {
-        moreBtn.style.display = 'block';
-        document.getElementById('show-more-count').textContent = '('+hidden+' more)';
-        document.getElementById('show-more-btn').innerHTML = '▼ SHOW ALL <span id="show-more-count">('+hidden+' more)</span>';
-      } else if (showAll && reversed.length > 4) {
-        moreBtn.style.display = 'block';
-        document.getElementById('show-more-btn').innerHTML = '▲ SHOW LESS';
-      } else {
-        moreBtn.style.display = 'none';
-      }
     }
 
     // Server log
@@ -903,22 +890,15 @@ async function refresh() {
   }
 }
 
-// Global state for bet list
-window._betsShowAll = false;
-
-function toggleShowAll() {
-  window._betsShowAll = !window._betsShowAll;
-}
-
 function toggleBet(id) {
   const detail = document.getElementById(id);
-  const chev = document.getElementById('chev_' + id);
+  const idx = id.replace('bet_','');
+  const chev = document.getElementById('chev_'+idx);
   if (!detail) return;
   const isOpen = detail.classList.contains('open');
-  // Close all first
+  // Close all others
   document.querySelectorAll('.bet-detail.open').forEach(el => el.classList.remove('open'));
   document.querySelectorAll('.bet-chevron.open').forEach(el => el.classList.remove('open'));
-  // Toggle this one
   if (!isOpen) {
     detail.classList.add('open');
     if (chev) chev.classList.add('open');
