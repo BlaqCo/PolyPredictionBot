@@ -170,19 +170,15 @@ export async function checkScalpExits(markets, dryRun = true) {
 }
 
 /**
- * Filter markets to only short-duration ones (15-min or 1-hr contracts)
- * These are ideal for scalping — fast price movement, quick resolution.
+ * Filter markets to scalp-eligible duration: 5–90 min remaining.
+ * Markets without endDateIso are included (live Polymarket sometimes omits it).
  */
 export function filterScalpMarkets(markets) {
   return markets.filter(m => {
-    if (!m.endDateIso) return false;
+    if (!m.endDateIso) return true; // include if we don't know expiry
     const msLeft = new Date(m.endDateIso) - Date.now();
     const minutesLeft = msLeft / 60000;
-
-    // Target: markets with 5–90 minutes remaining
-    // Avoid: < 5 min (too close to expiry, bad liquidity)
-    // Avoid: > 90 min (too slow for scalping)
-    return minutesLeft >= 5 && minutesLeft <= 90;
+    return minutesLeft >= 4 && minutesLeft <= 120; // slightly wider window
   });
 }
 
