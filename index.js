@@ -1,5 +1,4 @@
 import express from "express";
-import cron from "node-cron";
 import dotenv from "dotenv";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
@@ -16,12 +15,16 @@ export const config = {
     scanIntervalSeconds: parseInt(process.env.SCAN_INTERVAL_SECONDS || "8"),
     bankroll: parseFloat(process.env.BANKROLL || "100"),
     dryRun: process.env.DRY_RUN !== "false",
+    tpLow: parseFloat(process.env.TP_LOW || "0.15"),
+    tpHigh: parseFloat(process.env.TP_HIGH || "0.25"),
+    stopLoss: parseFloat(process.env.STOP_LOSS || "0.08"),
   },
   port: parseInt(process.env.PORT || "3000"),
 };
 
-console.log("🚀 PolyBot BTC");
-console.log(`   Mode: ${config.bot.dryRun ? "DRY RUN" : "LIVE"} | Bankroll: $${config.bot.bankroll} | Scan: every ${config.bot.scanIntervalSeconds}s`);
+console.log("🚀 PolyBot BTC — Momentum Scalp Edition");
+console.log(`   Mode: ${config.bot.dryRun ? "DRY RUN" : "LIVE"}`);
+console.log(`   TP: ${(config.bot.tpLow*100).toFixed(0)}–${(config.bot.tpHigh*100).toFixed(0)}% | SL: ${(config.bot.stopLoss*100).toFixed(0)}% | Scan: ${config.bot.scanIntervalSeconds}s`);
 
 let lastSignals = null, lastMarkets = [], isScanning = false;
 
@@ -29,7 +32,7 @@ import("./bot.js").then(({ runScanCycle }) => {
   const app = express();
   app.use(express.json());
 
-  app.get("/dashboard", (req, res) => {
+  app.get("/dashboard", (_, res) => {
     try { res.setHeader("Content-Type","text/html"); res.send(readFileSync(join(__dirname,"dashboard.html"),"utf8")); }
     catch { res.status(404).send("dashboard.html not found"); }
   });
@@ -42,6 +45,9 @@ import("./bot.js").then(({ runScanCycle }) => {
   });
 
   app.get("/bets", async (_, res) => { const { getAllBets } = await import("./state.js"); res.json(getAllBets()); });
+  app.get("/active", async (_, res) => { const { getAllActiveBets } = await import("./state.js"); res.json(getAllActiveBets()); });
+  app.get("/signals", (_, res) => res.json(lastSignals || {}));
+  app.get("/markets", (_, res) => res.json(lastMarkets));
 
   app.get("/price", async (_, res) => {
     try {
@@ -51,12 +57,8 @@ import("./bot.js").then(({ runScanCycle }) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  app.get("/signals", (_, res) => res.json(lastSignals || {}));
-  app.get("/markets", (_, res) => res.json(lastMarkets));
-
   app.listen(config.port, () => console.log(`🌐 Port ${config.port} | /dashboard`));
 
-  // ── Scan every N seconds ──
   async function scan() {
     if (isScanning) return;
     isScanning = true;
@@ -65,11 +67,12 @@ import("./bot.js").then(({ runScanCycle }) => {
       const { fetchBTCMarkets } = await import("./polymarket.js");
       const { sizeBet } = await import("./kelly.js");
       const { scoreSentiment } = await import("./sentiment.js");
+      const { scalpQuality } = await import("./scalper.js");
 
-      const [sig, book] = await Promise.allSettled([computeSignals(), fetchOrderBook(150)]);
-      if (sig.status === "fulfilled") {
-        const walls = detectWalls(book.status === "fulfilled" ? book.value : null, sig.value.currentPrice);
-        lastSignals = { ...sig.value, walls };
+      const [sigR, bookR] = await Promise.allSettled([computeSignals(), fetchOrderBook(150)]);
+      if (sigR.status === "fulfilled") {
+        const walls = detectWalls(bookR.status === "fulfilled" ? bookR.value : null, sigR.value.currentPrice);
+        lastSignals = { ...sigR.value, walls };
       }
 
       const markets = await fetchBTCMarkets();
@@ -77,7 +80,13 @@ import("./bot.js").then(({ runScanCycle }) => {
         const enriched = await Promise.all(markets.map(async m => {
           let sentiment = { sentimentBias: 0 };
           try { sentiment = await scoreSentiment(lastSignals, m); } catch {}
-          return { ...m, _decision: sizeBet(lastSignals, sentiment, m) };
+          const msLeft = m.endDateIso ? (new Date(m.endDateIso) - Date.now()) / 60000 : null;
+          return {
+            ...m,
+            _decision: sizeBet(lastSignals, sentiment, m),
+            _quality: scalpQuality(m, lastSignals),
+            _minutesLeft: msLeft ? msLeft.toFixed(0) : null,
+          };
         }));
         lastMarkets = enriched;
       }
@@ -91,6 +100,6 @@ import("./bot.js").then(({ runScanCycle }) => {
   }
 
   setInterval(scan, config.bot.scanIntervalSeconds * 1000);
-  console.log(`⚡ Scanning every ${config.bot.scanIntervalSeconds}s`);
+  console.log(`⚡ Scalping every ${config.bot.scanIntervalSeconds}s | TP: ${(config.bot.tpLow*100).toFixed(0)}–${(config.bot.tpHigh*100).toFixed(0)}% | SL: ${(config.bot.stopLoss*100).toFixed(0)}%`);
   scan();
 }).catch(err => { console.error("Boot failed:", err.message); process.exit(1); });
