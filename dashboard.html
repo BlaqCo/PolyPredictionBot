@@ -233,7 +233,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 
 <!-- Stats -->
 <div class="stats">
-  <div class="stat g"><div class="stat-l">Session P&L</div><div class="stat-v neutral" id="s-pnl">$0.00</div><div class="stat-s" id="s-wag">$0 wagered</div></div>
+  <div class="stat g"><div class="stat-l">Balance</div><div class="stat-v neutral" id="s-balance">$40.00</div><div class="stat-s" id="s-wag">$0 wagered</div></div>
+  <div class="stat g" style="border-left:2px solid var(--green)"><div class="stat-l">Session P&L</div><div class="stat-v neutral" id="s-pnl">$0.00</div><div class="stat-s" id="s-pnl-pct">+0.0% return</div></div>
   <div class="stat b"><div class="stat-l">Win Rate</div><div class="stat-v neutral" id="s-wr">N/A</div><div class="stat-s" id="s-wl">0W / 0L</div></div>
   <div class="stat y"><div class="stat-l">Active Bets</div><div class="stat-v neutral" id="s-active">0</div><div class="stat-s" id="s-total">0 placed</div></div>
   <div class="stat c"><div class="stat-l">Scalp Exits</div><div class="stat-v neutral" id="s-scalps">0</div><div class="stat-s" id="s-scans">0 scans</div></div>
@@ -622,15 +623,25 @@ async function refresh() {
       const s = root.stats || {};
       const isDry = root.settings?.dryRun ?? (root.mode === 'DRY_RUN');
       const pnl = parseFloat(s.pnl||0);
+      const startBal = parseFloat(root.config?.bankroll || 40);
+      const currentBal = startBal + pnl;
+      const pnlPct = ((pnl / startBal) * 100).toFixed(1);
       currentSettings = root.settings || currentSettings;
 
       document.getElementById('mode-badge').textContent = isDry ? '◎ DRY RUN' : '⬤ LIVE';
       document.getElementById('mode-badge').className = 'badge ' + (isDry ? 'badge-dry' : 'badge-live');
 
+      // Balance
+      const balEl = document.getElementById('s-balance');
+      balEl.textContent = '$' + currentBal.toFixed(2);
+      balEl.className = 'stat-v ' + (currentBal >= startBal ? 'pos' : 'neg');
+      document.getElementById('s-wag').textContent = '$'+(s.totalWagered||'0.00')+' wagered';
+
       const pe = document.getElementById('s-pnl');
-      pe.textContent = '$'+pnl.toFixed(2);
+      pe.textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
       pe.className = 'stat-v '+(pnl>0?'pos':pnl<0?'neg':'neutral');
-      document.getElementById('tk-pnl').textContent = '$'+pnl.toFixed(2);
+      document.getElementById('s-pnl-pct').textContent = (pnl >= 0 ? '+' : '') + pnlPct + '% return';
+      document.getElementById('tk-pnl').textContent = (pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2);
       document.getElementById('tk-pnl').className = 'ti-v '+(pnl>0?'pos':pnl<0?'neg':'neutral');
       document.getElementById('s-wag').textContent = '$'+(s.totalWagered||'0.00')+' wagered';
       document.getElementById('s-wr').textContent = s.winRate||'N/A';
