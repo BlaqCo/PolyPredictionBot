@@ -350,18 +350,29 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
       <div id="strat-status-a" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-a"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">RSI/EMA</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI(14) + EMA 9/21 crossover. Best in trending markets with clear directional momentum.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">TREND SCALP</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">EMA 9/21/50 stack + RSI pullback timing. Rides both uptrends and downtrends. Highest frequency strategy.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
       </div>
       <div id="strat-status-b" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-b"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">WALL DETECTION</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Order book bid/ask wall analysis. Best in ranging/choppy markets for precision entry timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MOMENTUM</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Price velocity + volume surge detection. Catches early breakouts before markets reprice. Fast entry/exit.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
       </div>
       <div id="strat-status-c" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-c"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">ATR BREAKOUT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Volatility breakout using ATR bands + volume surge. Best for catching early big moves.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MEAN REVERT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI extremes + Bollinger band edges. Fades overextended moves. High win rate when RSI &lt;35 or &gt;65.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
       </div>
     </div>
   </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align:center;padding:20px 0 16px;border-top:1px solid var(--border);margin-top:16px;position:relative;z-index:1">
+  <a href="https://x.com/0xblaq?s=11" target="_blank" rel="noopener noreferrer"
+     style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--muted);font-size:10px;letter-spacing:2px;text-transform:uppercase;transition:all 0.2s;padding:7px 16px;border:1px solid var(--border);border-radius:3px;background:transparent"
+     onmouseover="this.style.color='var(--bright)';this.style.borderColor='var(--border2)';this.style.background='rgba(255,255,255,0.03)'"
+     onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)';this.style.background='transparent'">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    Built by @0xblaq
+  </a>
 </div>
 
 </div><!-- end wrap -->
