@@ -313,9 +313,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <!-- Strategy signals -->
     <div class="panel">
       <div class="strat-tabs" id="strat-tabs">
-        <div class="strat-tab" id="tab-a">RSI/EMA</div>
-        <div class="strat-tab" id="tab-b">WALLS</div>
-        <div class="strat-tab" id="tab-c">BREAKOUT</div>
+        <div class="strat-tab" id="tab-a">TREND</div>
+        <div class="strat-tab" id="tab-b">MOMENTUM</div>
+        <div class="strat-tab" id="tab-c">MEAN REV</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:9px" id="auto-label">
           <span style="color:var(--muted)">AUTO</span>
         </div>
@@ -358,15 +358,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
       <div id="strat-status-a" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-a"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">RSI/EMA</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI(14) + EMA 9/21 crossover. Best in trending markets with clear directional momentum.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">TREND</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">RSI(14) + EMA 9/21 crossover. Best in trending markets with clear directional momentum.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
       </div>
       <div id="strat-status-b" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-b"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">WALL DETECTION</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Order book bid/ask wall analysis. Best in ranging/choppy markets for precision entry timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold"</div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MOMENTUM</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Order book bid/ask wall analysis. Best in ranging/choppy markets for precision entry timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
       </div>
       <div id="strat-status-c" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-c"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">ATR BREAKOUT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Volatility breakout using ATR bands + volume surge. Best for catching early big moves.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold"</div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MEAN REVERT</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Volatility breakout using ATR bands + volume surge. Best for catching early big moves.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-c-meta">—</div></div>
       </div>
     </div>
   </div>
@@ -442,36 +444,36 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
         <div class="sp-section-label">Manual Strategy Selection <span style="color:var(--dim);font-size:8px">(active when AUTO is OFF)</span></div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-a" style="display:inline-block"></span> RSI / EMA Crossover</div>
-            <div class="toggle-desc">RSI(14) + EMA 9/21. Best for trending momentum scalps.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-a" style="display:inline-block"></span> Trend Scalp</div>
+            <div class="toggle-desc">EMA stack + RSI pullback timing. Rides uptrends & downtrends. Highest frequency.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-rsi" onchange="saveSetting('strategies.RSI_EMA', this.checked)">
+            <input type="checkbox" id="tog-rsi" onchange="saveSetting('strategies.TREND_SCALP', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-b" style="display:inline-block"></span> Order Book Walls</div>
-            <div class="toggle-desc">Bid/ask wall detection. Best for ranging/choppy conditions.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-b" style="display:inline-block"></span> Momentum</div>
+            <div class="toggle-desc">Price velocity + volume surge. Catches early breakouts and fast moves.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-wall" onchange="saveSetting('strategies.WALL', this.checked)">
+            <input type="checkbox" id="tog-wall" onchange="saveSetting('strategies.MOMENTUM', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="toggle-row">
           <div class="toggle-info">
-            <div class="toggle-name"><span class="strat-indicator strat-c" style="display:inline-block"></span> ATR Breakout</div>
-            <div class="toggle-desc">Volatility breakout + volume surge. Best for catching big moves early.</div>
+            <div class="toggle-name"><span class="strat-indicator strat-c" style="display:inline-block"></span> Mean Revert</div>
+            <div class="toggle-desc">RSI extremes + Bollinger bands. Fades overextended moves. High win rate.</div>
           </div>
           <label class="toggle-wrap">
-            <input type="checkbox" id="tog-break" onchange="saveSetting('strategies.BREAKOUT', this.checked)">
+            <input type="checkbox" id="tog-break" onchange="saveSetting('strategies.MEAN_REVERT', this.checked)">
             <div class="toggle-track"></div>
           </label>
         </div>
         <div class="sp-note" style="margin-top:10px">
-          When AUTO is OFF, all enabled strategies still run — the one with highest confidence leads, others add 15–20% confirmation weight. Having all 3 on with AUTO off is a valid config.
+          AUTO mode picks the best strategy per market condition. TREND_SCALP fires most often — ideal for high-frequency scalping.
         </div>
       </div>
 
@@ -564,9 +566,9 @@ function closeOnOutside(e) { if(e.target===document.getElementById('settings-ove
 function syncToggles() {
   document.getElementById('tog-enabled').checked = currentSettings.enabled;
   document.getElementById('tog-auto').checked = currentSettings.autoMode;
-  document.getElementById('tog-rsi').checked = currentSettings.strategies?.RSI_EMA ?? true;
-  document.getElementById('tog-wall').checked = currentSettings.strategies?.WALL ?? true;
-  document.getElementById('tog-break').checked = currentSettings.strategies?.BREAKOUT ?? true;
+  document.getElementById('tog-rsi').checked = currentSettings.strategies?.TREND_SCALP ?? true;
+  document.getElementById('tog-wall').checked = currentSettings.strategies?.MOMENTUM ?? true;
+  document.getElementById('tog-break').checked = currentSettings.strategies?.MEAN_REVERT ?? true;
   // dryRun: checkbox ON = dry run mode
   const isDry = currentSettings.dryRun ?? true;
   document.getElementById('tog-dry').checked = isDry;
@@ -730,14 +732,14 @@ async function refresh() {
       if(sig.oraclePrice)document.getElementById('oracle-p').textContent='CHAINLINK $'+fmt(sig.oraclePrice);
 
       // Strategy tabs
-      const stratColor = {RSI_EMA:'a',WALL:'b',BREAKOUT:'c'};
+      const stratColor = {TREND_SCALP:'a',MOMENTUM:'b',MEAN_REVERT:'c'};
       ['a','b','c'].forEach(x=>document.getElementById('tab-'+x).className='strat-tab');
       if(stratColor[strat]) {
         const tab = document.getElementById('tab-'+stratColor[strat]);
         tab.className='strat-tab active-'+stratColor[strat];
       }
       document.getElementById('tk-strat').textContent=strat+(isAuto?' [AUTO]':'');
-      document.getElementById('tk-strat').style.color=strat==='RSI_EMA'?'var(--green)':strat==='WALL'?'var(--yellow)':'var(--blue)';
+      document.getElementById('tk-strat').style.color=strat==='TREND_SCALP'?'var(--green)':strat==='MOMENTUM'?'var(--yellow)':'var(--blue)';
       document.getElementById('s-strat').textContent=(isAuto?'AUTO: ':'MANUAL: ')+strat;
       document.getElementById('strat-mode-label').textContent=isAuto?'AUTO MODE':'MANUAL MODE';
 
@@ -764,7 +766,7 @@ async function refresh() {
       ['a','b','c'].forEach(x=>{
         const el=document.getElementById('strat-status-'+x);
         const colors={a:'var(--green)',b:'var(--yellow)',c:'var(--blue)'};
-        const names={a:'RSI_EMA',b:'WALL',c:'BREAKOUT'};
+        const names={a:'TREND_SCALP',b:'MOMENTUM',c:'MEAN_REVERT'};
         const isActive=names[x]===strat;
         el.style.borderLeftColor=isActive?colors[x]:'var(--dim)';
         el.style.background=isActive?'rgba(0,0,0,0.5)':'rgba(0,0,0,0.3)';
@@ -828,7 +830,7 @@ async function refresh() {
         const sc = b.status==='won'?'s-won':b.status==='lost'?'s-lost':'s-open';
         const pnl = b.pnl != null ? b.pnl : null;
         const pnlStr = pnl != null ? (pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2) : 'OPEN';
-        const stratCol = b.strategy==='RSI_EMA'?'var(--green)':b.strategy==='WALL'?'var(--yellow)':'var(--blue)';
+        const stratCol = b.strategy==='TREND_SCALP'?'var(--green)':b.strategy==='MOMENTUM'?'var(--yellow)':'var(--blue)';
         const entryPct = b.entryPrice ? (b.entryPrice*100).toFixed(1)+'¢' : '—';
         const exitPct = b.exitPrice ? (b.exitPrice*100).toFixed(1)+'¢' : '—';
         const edgePct = b.edge ? (b.edge*100).toFixed(1)+'%' : '—';
@@ -951,12 +953,14 @@ function buildReasoning(b) {
   const implP = b.impliedProbability ? (b.impliedProbability*100).toFixed(0) : '?';
 
   // Strategy explanation
-  if (strat === 'BREAKOUT') {
-    lines.push(`<b style="color:var(--blue)">ATR BREAKOUT</b> strategy detected BTC breaking outside its ATR volatility band with elevated volume. Price action confirmed a directional move.`);
-  } else if (strat === 'RSI_EMA') {
-    lines.push(`<b style="color:var(--green)">RSI/EMA</b> strategy: RSI momentum and EMA 9/21 crossover alignment indicated a ${side==='YES'?'bullish':'bearish'} directional bias.`);
-  } else if (strat === 'WALL') {
-    lines.push(`<b style="color:var(--yellow)">WALL DETECTION</b> strategy: Order book analysis showed significant ${side==='YES'?'bid support below price (bullish)':'ask resistance above price (bearish)'}.`);
+  if (strat === 'TREND_SCALP') {
+    lines.push(`<b style="color:var(--green)">TREND SCALP</b>: EMA stack confirmed a ${side==='YES'?'bullish uptrend':'bearish downtrend'} — RSI ${side==='YES'?'pulled back to support then bounced':'bounced to resistance then rejected'}. Entry timed at optimal point in the trend.`);
+  } else if (strat === 'MOMENTUM') {
+    lines.push(`<b style="color:var(--yellow)">MOMENTUM</b>: Price velocity surge detected with elevated volume. Bot entered early on an accelerating ${side==='YES'?'upside':'downside'} move before markets repriced.`);
+  } else if (strat === 'MEAN_REVERT') {
+    lines.push(`<b style="color:var(--blue)">MEAN REVERT</b>: RSI reached ${side==='YES'?'oversold':'overbought'} extreme near Bollinger ${side==='YES'?'lower':'upper'} band — high-probability fade of an overextended move.`);
+  } else {
+    lines.push(`Strategy: <b>${strat}</b> detected a ${side==='YES'?'bullish':'bearish'} signal.`);
   }
 
   // Edge explanation
