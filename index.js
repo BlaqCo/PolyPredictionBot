@@ -60,6 +60,19 @@ import("./bot.js").then(async ({ runScanCycle, botSettings }) => {
   app.get("/markets", (_, res) => res.json(lastMarkets));
   app.get("/log", (_, res) => res.json(systemLog));
 
+  app.get("/balance", async (_, res) => {
+    const { getBalance } = await import("./polymarket.js");
+    const { getStats } = await import("./state.js");
+    const balance = await getBalance();
+    const stats = getStats();
+    res.json({
+      balance,
+      startingBalance: config.bot.bankroll,
+      pnl: parseFloat(stats.pnl),
+      mode: botSettings.dryRun ? "DRY_RUN" : "LIVE",
+    });
+  });
+
   app.get("/price", async (_, res) => {
     try {
       const { fetchCurrentPrice, fetch24hStats } = await import("./signals.js");
