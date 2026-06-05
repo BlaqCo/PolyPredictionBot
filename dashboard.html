@@ -631,10 +631,13 @@ async function refresh() {
       document.getElementById('mode-badge').textContent = isDry ? '◎ DRY RUN' : '⬤ LIVE';
       document.getElementById('mode-badge').className = 'badge ' + (isDry ? 'badge-dry' : 'badge-live');
 
-      // Balance
+      // Balance — use dryBalance from stats for dry mode
       const balEl = document.getElementById('s-balance');
-      balEl.textContent = '$' + currentBal.toFixed(2);
-      balEl.className = 'stat-v ' + (currentBal >= startBal ? 'pos' : 'neg');
+      const displayBal = isDry
+        ? parseFloat(s.dryBalance || s.currentBalance || startBal)
+        : parseFloat(s.currentBalance || startBal);
+      balEl.textContent = '$' + displayBal.toFixed(2);
+      balEl.className = 'stat-v ' + (displayBal >= startBal ? 'pos' : 'neg');
       document.getElementById('s-wag').textContent = '$'+(s.totalWagered||'0.00')+' wagered';
 
       const pe = document.getElementById('s-pnl');
