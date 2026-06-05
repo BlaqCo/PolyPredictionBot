@@ -9,11 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const config = {
   bot: {
-    maxBetSize: parseFloat(process.env.MAX_BET_SIZE || "10"),
-    minEdge: parseFloat(process.env.MIN_EDGE || "0.05"),
-    kellyFraction: parseFloat(process.env.KELLY_FRACTION || "0.25"),
+    maxBetSize: parseFloat(process.env.MAX_BET_SIZE || "8"),
+    minEdge: parseFloat(process.env.MIN_EDGE || "0.02"),
+    kellyFraction: parseFloat(process.env.KELLY_FRACTION || "0.30"),
     scanIntervalSeconds: parseInt(process.env.SCAN_INTERVAL_SECONDS || "8"),
-    bankroll: parseFloat(process.env.BANKROLL || "100"),
+    bankroll: parseFloat(process.env.BANKROLL || "40"),
     dryRun: process.env.DRY_RUN !== "false",
     tpLow: parseFloat(process.env.TP_LOW || "0.15"),
     tpHigh: parseFloat(process.env.TP_HIGH || "0.25"),
@@ -165,7 +165,12 @@ import("./bot.js").then(async ({ runScanCycle, botSettings }) => {
         }
       }
       if (result?.betsPlaced > 0) {
-        addLog("ok", `Placed ${result.betsPlaced} new bet(s) | Active: ${(await import("./state.js")).getStats().activeBets}`);
+        const { getStats } = await import("./state.js");
+        const st = getStats();
+        addLog("ok", `PLACED ${result.betsPlaced} bet(s) | Active:${st.activeBets} | P&L:$${st.pnl}`);
+      } else if (lastSignals) {
+        const dir = lastSignals.bias > 0.1 ? "BULL" : lastSignals.bias < -0.1 ? "BEAR" : "FLAT";
+        addLog("info", `No entry — bias:${lastSignals.bias.toFixed(3)} [${dir}] conf:${(lastSignals.confidence*100).toFixed(0)}% strat:${lastSignals.activeStrategy}`);
       }
     } catch (err) {
       addLog("err", "Scan error: " + err.message);
