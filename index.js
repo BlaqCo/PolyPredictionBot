@@ -17,7 +17,7 @@ export const config = {
     dryRun: process.env.DRY_RUN !== "false",
     tpLow: parseFloat(process.env.TP_LOW || "0.15"),
     tpHigh: parseFloat(process.env.TP_HIGH || "0.25"),
-    stopLoss: parseFloat(process.env.STOP_LOSS || "0.08"),
+    stopLoss: parseFloat(process.env.STOP_LOSS || "0.40"),
   },
   port: parseInt(process.env.PORT || "3000"),
 };
