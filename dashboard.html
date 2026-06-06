@@ -90,7 +90,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 .oracle-tag{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:9px;color:var(--cyan);border:1px solid rgba(0,229,255,0.2);padding:3px 8px;border-radius:2px;background:rgba(0,229,255,0.04);flex-shrink:0;}
 
 /* Stats */
-.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
 .stat{background:var(--panel);border:1px solid var(--border);border-radius:3px;padding:12px 14px;position:relative;overflow:hidden;}
 .stat::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;}
 .g::after{background:linear-gradient(90deg,transparent,var(--green),transparent);}
@@ -251,18 +251,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="stat y"><div class="stat-l">Active Bets</div><div class="stat-v neutral" id="s-active">0</div><div class="stat-s" id="s-total">0 placed</div></div>
   <div class="stat c"><div class="stat-l">Scalp Exits</div><div class="stat-v neutral" id="s-scalps">0</div><div class="stat-s" id="s-scans">0 scans</div></div>
   <div class="stat g"><div class="stat-l">Confidence</div><div class="stat-v neutral" id="s-conf">—</div><div class="stat-s" id="s-strat">—</div></div>
-  <div class="stat b" style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:0;overflow:hidden">
-    <div style="padding:12px 10px;border-right:1px solid var(--border)">
-      <div class="stat-l">OPEN P&L</div>
-      <div class="stat-v neutral" id="s-open-pnl">—</div>
-      <div class="stat-s" id="s-open-pnl-sub">no open bets</div>
-    </div>
-    <div style="padding:12px 10px">
-      <div class="stat-l">NEXT EXPIRY</div>
-      <div class="stat-v neutral" id="s-expiry">—</div>
-      <div class="stat-s" id="s-expiry-sub">—</div>
-    </div>
-  </div>
+  <div class="stat b"><div class="stat-l">OPEN P&L</div><div class="stat-v neutral" id="s-open-pnl">—</div><div class="stat-s" id="s-open-pnl-sub">no open bets</div></div>
+  <div class="stat b"><div class="stat-l">NEXT EXPIRY</div><div class="stat-v neutral" id="s-expiry">—</div><div class="stat-s" id="s-expiry-sub">—</div></div>
 </div>
 
 <!-- Main -->
@@ -776,17 +766,18 @@ async function refresh() {
         let totalOpenPnl = 0;
         let earliest = null;
         for(const b of active) {
-          if(b.entryPrice && b.betSize) {
-            // Rough estimate: bias direction * 0.1 per bet as placeholder until real exit prices
-            const btcMove = (btcNow && b.entryBtcPrice) ? (btcNow - b.entryBtcPrice)/b.entryBtcPrice : 0;
-            const isLong = b.side === 'YES';
+          if(b.entryPrice && b.betSize && b.entryBtcPrice && btcNow) {
+            const btcMove = (btcNow - b.entryBtcPrice) / b.entryBtcPrice;
+            const q = (b.marketQuestion||'').toLowerCase();
+            const isBullQ = q.includes('above')||q.includes('higher')||q.includes('reach')||q.includes('hit');
+            const isLong = isBullQ ? b.side==='YES' : b.side==='NO';
             const contractMove = btcMove * 0.40 * (isLong ? 1 : -1);
             const pnl = b.betSize * contractMove;
-            totalOpenPnl += pnl;
+            if(isFinite(pnl)) totalOpenPnl += pnl;
           }
           if(b.marketEndDateIso) {
             const t = new Date(b.marketEndDateIso);
-            if(!earliest || t < earliest.t) earliest = { t, q: b.marketQuestion };
+            if(!isNaN(t) && (!earliest || t < earliest.t)) earliest = { t, q: b.marketQuestion };
           }
         }
         const pnlSign = totalOpenPnl >= 0 ? '+' : '';
