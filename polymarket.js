@@ -15,27 +15,11 @@ async function getDryRun() {
 }
 
 const BTC_KW = [
-  // Short-duration directional markets (the ones we actually want)
-  "btc up or down",
-  "bitcoin up or down",
-  "btc up/down",
-  "will btc go up",
-  "will bitcoin go up",
-  "btc higher or lower",
-  // Price level markets
-  "bitcoin", "btc",
-  "will btc", "will bitcoin",
-  "btc above", "btc below",
-  "bitcoin above", "bitcoin below",
-  "btc price", "bitcoin price",
-  "btc end", "bitcoin end",
-  "btc close", "bitcoin close",
-];
-
-// These are OLD/expired markets Polymarket leaves open — filter them out
-const STALE_MARKET_KW = [
-  "$1,000,000", "$1m usd", "$20k", "$17000", "$1700",
-  "january 4", "june 17", "balaji",
+  "bitcoin", "btc", "will btc", "will bitcoin",
+  "btc above", "btc below", "bitcoin above", "bitcoin below",
+  "btc price", "bitcoin price", "btc hit", "bitcoin hit",
+  "btc end", "bitcoin end", "btc close", "bitcoin close",
+  "btc reach", "bitcoin reach",
 ];
 
 function isValidScalpMarket(m) {
@@ -58,7 +42,6 @@ export async function fetchBTCMarkets() {
     const btc = all
       .filter(m => {
         const q = (m.question || m.title || "").toLowerCase();
-        if (STALE_MARKET_KW.some(kw => q.includes(kw))) return false;
         return BTC_KW.some(kw => q.includes(kw));
       })
       .filter(isValidScalpMarket)
@@ -83,7 +66,6 @@ export async function fetchBTCMarkets() {
     const btc = all
       .filter(m => {
         const q = (m.question || m.groupItemTitle || "").toLowerCase();
-        if (STALE_MARKET_KW.some(kw => q.includes(kw))) return false;
         return BTC_KW.some(kw => q.includes(kw));
       })
       .filter(isValidScalpMarket)
@@ -95,47 +77,6 @@ export async function fetchBTCMarkets() {
     }
   } catch (err) {
     console.log("⚠️  Gamma API:", err.message);
-  }
-
-  // Try direct slug/tag search for "BTC Up or Down" markets (new 5m/15m format)
-  try {
-    const searches = [
-      axios.get("https://gamma-api.polymarket.com/markets", {
-        params: { search: "BTC Up or Down", active: true, closed: false, limit: 20 },
-        timeout: 6000,
-      }),
-      axios.get("https://gamma-api.polymarket.com/markets", {
-        params: { search: "Bitcoin Up or Down", active: true, closed: false, limit: 20 },
-        timeout: 6000,
-      }),
-      axios.get("https://gamma-api.polymarket.com/events", {
-        params: { tag: "crypto", active: true, limit: 50 },
-        timeout: 6000,
-      }),
-    ];
-    const results = await Promise.allSettled(searches);
-    const found = [];
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      const items = r.value.data?.markets || r.value.data?.events || r.value.data || [];
-      for (const item of (Array.isArray(items) ? items : [])) {
-        const mts = item.markets || [item];
-        for (const m of mts) {
-          const q = (m.question || m.title || "").toLowerCase();
-          if ((q.includes("btc") || q.includes("bitcoin")) && isValidScalpMarket(m)) {
-            if (!STALE_MARKET_KW.some(kw => q.includes(kw))) {
-              found.push(normalizeMarket(m));
-            }
-          }
-        }
-      }
-    }
-    if (found.length > 0) {
-      console.log(`📊 Search API: ${found.length} live short-duration BTC markets`);
-      return found;
-    }
-  } catch (err) {
-    console.log("⚠️  Search API:", err.message);
   }
 
   // Synthetic markets — price-aware, correct expiry, no BS
@@ -173,64 +114,75 @@ async function getSyntheticMarkets() {
 
   const now = Date.now();
   const min = n => new Date(now + n * 60000).toISOString();
-  const p = Math.round(btcPrice);
 
-  // Match real Polymarket "BTC Up or Down" format
-  // YES = BTC goes UP, NO = BTC goes DOWN
-  // Near 50/50 since it's purely directional
+  // Strike prices relative to current
+  const p = btcPrice;
+  const r = (pct) => Math.round((p * (1 + pct)) / 100) * 100;
+
+  // YES price reflects real probability — near-ATM ~0.47-0.53
+  // Slightly OTM ~0.30-0.40, far OTM ~0.15-0.25
   return [
     {
-      conditionId: `syn_5m_a_${now}`,
-      question: `BTC Up or Down in the next 5 minutes? (${p.toLocaleString()})`,
-      endDateIso: min(5),
-      tokens: [
-        { tokenId: `syn_5m_yes_a_${now}`, outcome: "Yes", price: 0.50 },
-        { tokenId: `syn_5m_no_a_${now}`,  outcome: "No",  price: 0.50 },
-      ],
-    },
-    {
-      conditionId: `syn_5m_b_${now}`,
-      question: `Will BTC be higher in 5 minutes? (now: $${p.toLocaleString()})`,
-      endDateIso: min(5),
-      tokens: [
-        { tokenId: `syn_5m_yes_b_${now}`, outcome: "Yes", price: 0.49 },
-        { tokenId: `syn_5m_no_b_${now}`,  outcome: "No",  price: 0.51 },
-      ],
-    },
-    {
-      conditionId: `syn_15m_a_${now}`,
-      question: `BTC Up or Down 15m? (from $${p.toLocaleString()})`,
+      conditionId: `syn_15m_atm_${now}`,
+      question: `Will BTC be above $${r(0).toLocaleString()} in 15 minutes?`,
       endDateIso: min(15),
       tokens: [
-        { tokenId: `syn_15m_yes_a_${now}`, outcome: "Yes", price: 0.51 },
-        { tokenId: `syn_15m_no_a_${now}`,  outcome: "No",  price: 0.49 },
+        { tokenId: `syn_y1_${now}`, outcome: "Yes", price: 0.49 },
+        { tokenId: `syn_n1_${now}`, outcome: "No",  price: 0.51 },
       ],
     },
     {
-      conditionId: `syn_15m_b_${now}`,
-      question: `Will BTC be higher in 15 minutes? (now: $${p.toLocaleString()})`,
+      conditionId: `syn_15m_bull_${now}`,
+      question: `Will BTC rise above $${r(0.005).toLocaleString()} in the next 15 minutes?`,
       endDateIso: min(15),
       tokens: [
-        { tokenId: `syn_15m_yes_b_${now}`, outcome: "Yes", price: 0.48 },
-        { tokenId: `syn_15m_no_b_${now}`,  outcome: "No",  price: 0.52 },
+        { tokenId: `syn_y2_${now}`, outcome: "Yes", price: 0.36 },
+        { tokenId: `syn_n2_${now}`, outcome: "No",  price: 0.64 },
       ],
     },
     {
-      conditionId: `syn_1h_a_${now}`,
-      question: `BTC Up or Down 1 hour? (from $${p.toLocaleString()})`,
-      endDateIso: min(60),
+      conditionId: `syn_15m_bear_${now}`,
+      question: `Will BTC drop below $${r(-0.005).toLocaleString()} in the next 15 minutes?`,
+      endDateIso: min(15),
       tokens: [
-        { tokenId: `syn_1h_yes_a_${now}`, outcome: "Yes", price: 0.52 },
-        { tokenId: `syn_1h_no_a_${now}`,  outcome: "No",  price: 0.48 },
+        { tokenId: `syn_y3_${now}`, outcome: "Yes", price: 0.34 },
+        { tokenId: `syn_n3_${now}`, outcome: "No",  price: 0.66 },
       ],
     },
     {
-      conditionId: `syn_1h_b_${now}`,
-      question: `Will BTC be higher in 1 hour? (now: $${p.toLocaleString()})`,
+      conditionId: `syn_1h_bull_${now}`,
+      question: `Will BTC close above $${r(0.01).toLocaleString()} in 1 hour?`,
       endDateIso: min(60),
       tokens: [
-        { tokenId: `syn_1h_yes_b_${now}`, outcome: "Yes", price: 0.50 },
-        { tokenId: `syn_1h_no_b_${now}`,  outcome: "No",  price: 0.50 },
+        { tokenId: `syn_y4_${now}`, outcome: "Yes", price: 0.41 },
+        { tokenId: `syn_n4_${now}`, outcome: "No",  price: 0.59 },
+      ],
+    },
+    {
+      conditionId: `syn_1h_atm_${now}`,
+      question: `Will BTC be higher than current price in 1 hour?`,
+      endDateIso: min(60),
+      tokens: [
+        { tokenId: `syn_y5_${now}`, outcome: "Yes", price: 0.52 },
+        { tokenId: `syn_n5_${now}`, outcome: "No",  price: 0.48 },
+      ],
+    },
+    {
+      conditionId: `syn_1h_bear_${now}`,
+      question: `Will BTC drop below $${r(-0.01).toLocaleString()} in 1 hour?`,
+      endDateIso: min(60),
+      tokens: [
+        { tokenId: `syn_y6_${now}`, outcome: "Yes", price: 0.38 },
+        { tokenId: `syn_n6_${now}`, outcome: "No",  price: 0.62 },
+      ],
+    },
+    {
+      conditionId: `syn_90m_bull_${now}`,
+      question: `Will BTC reach $${r(0.015).toLocaleString()} in the next 90 minutes?`,
+      endDateIso: min(90),
+      tokens: [
+        { tokenId: `syn_y7_${now}`, outcome: "Yes", price: 0.33 },
+        { tokenId: `syn_n7_${now}`, outcome: "No",  price: 0.67 },
       ],
     },
   ];
