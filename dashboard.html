@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>POLYBOT//BTC</title>
+<title>POLYBETTOR</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -43,14 +43,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 .gear-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 12px var(--glow);}
 
 /* Settings panel */
-.settings-overlay{display:none;position:fixed;inset:0;background:rgba(2,4,8,0.85);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
-.settings-overlay.open{display:flex;}
-.settings-panel{background:var(--panel);border:1px solid var(--border2);border-radius:6px;width:420px;max-width:95vw;overflow:hidden;box-shadow:0 0 60px rgba(0,180,255,0.15);}
-.sp-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border2);background:rgba(0,0,0,0.3);}
+.settings-overlay{display:none;position:fixed;inset:0;background:rgba(2,4,8,0.92);z-index:1000;overflow-y:auto;-webkit-overflow-scrolling:touch;backdrop-filter:blur(4px);padding:16px 0 40px;}
+.settings-overlay.open{display:block;}
+.settings-panel{background:var(--panel);border:1px solid var(--border2);border-radius:6px;width:calc(100% - 32px);max-width:480px;margin:0 auto;box-shadow:0 0 60px rgba(0,180,255,0.15);overflow:hidden;}
+.sp-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border2);background:rgba(0,0,0,0.5);position:sticky;top:0;z-index:10;border-radius:6px 6px 0 0;}
 .sp-title{font-family:'Orbitron';font-size:11px;letter-spacing:3px;color:var(--cyan);}
-.sp-close{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;}
-.sp-close:hover{color:var(--red);}
-.sp-body{padding:18px;}
+.sp-close{background:rgba(255,45,85,0.15);border:1px solid rgba(255,45,85,0.5);color:#ff2d55;font-size:14px;cursor:pointer;width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sp-close:hover{background:rgba(255,45,85,0.3);}
+.sp-body{padding:0 18px 24px;}
 .sp-section{margin-bottom:20px;}
 .sp-section-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 
@@ -212,7 +212,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="logo">
     <div class="logo-hex"></div>
     <div class="logo-text">
-      <h1>POLY<span>BOT</span>//BTC</h1>
+      <h1>POLY<span>BETTOR</span></h1>
       <div class="sub">Momentum Scalp Engine · Prediction Markets</div>
     </div>
   </div>
@@ -247,11 +247,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <div class="stats">
   <div class="stat g"><div class="stat-l">Balance</div><div class="stat-v neutral" id="s-balance">$40.00</div><div class="stat-s" id="s-wag">$0 wagered</div></div>
   <div class="stat g" style="border-left:2px solid var(--green)"><div class="stat-l">Session P&L</div><div class="stat-v neutral" id="s-pnl">$0.00</div><div class="stat-s" id="s-pnl-pct">+0.0% return</div></div>
-  <div class="stat b"><div class="stat-l">Win Rate</div><div class="stat-v neutral" id="s-wr">N/A</div><div class="stat-s" id="s-wl">0W / 0L / 0 EXP</div></div>
+  <div class="stat b"><div class="stat-l">Win Rate</div><div class="stat-v neutral" id="s-wr">N/A</div><div class="stat-s" id="s-wl">0W / 0L</div></div>
   <div class="stat y"><div class="stat-l">Active Bets</div><div class="stat-v neutral" id="s-active">0</div><div class="stat-s" id="s-total">0 placed</div></div>
   <div class="stat c"><div class="stat-l">Scalp Exits</div><div class="stat-v neutral" id="s-scalps">0</div><div class="stat-s" id="s-scans">0 scans</div></div>
   <div class="stat g"><div class="stat-l">Confidence</div><div class="stat-v neutral" id="s-conf">—</div><div class="stat-s" id="s-strat">—</div></div>
-  <div class="stat b"><div class="stat-l">ATR</div><div class="stat-v neutral" id="s-atr">—</div><div class="stat-s" id="s-spread">—</div></div>
+  <div class="stat b"><div class="stat-l">Open P&amp;L</div><div class="stat-v neutral" id="s-opl">$0.00</div><div class="stat-s" id="s-opl-sub">0 open positions</div></div>
+  <div class="stat y"><div class="stat-l">Next Expiry</div><div class="stat-v neutral" id="s-exp">—</div><div class="stat-s" id="s-exp-sub">no active bets</div></div>
 </div>
 
 <!-- Main -->
@@ -340,7 +341,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="console">
     <div class="ph"><span class="ph-t">System Log</span><span class="ph-r" id="log-count">0</span></div>
     <div class="con-body" id="con-log">
-      <div class="ll"><span class="lt">[BOOT]</span><span class="linfo">POLYBOT BTC INITIALIZING...</span></div>
+      <div class="ll"><span class="lt">[BOOT]</span><span class="linfo">POLYBETTOR INITIALIZING...</span></div>
     </div>
   </div>
 
@@ -350,11 +351,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
       <div id="strat-status-a" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-a"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">TREND</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">EMA 9/21/50 stack + RSI pullback. Rides uptrends and downtrends.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">TREND</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">EMA 9/21/50 stack + RSI pullback. Rides trends with momentum timing.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-a-meta">—</div></div>
       </div>
       <div id="strat-status-b" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-b"></div>
-        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MOMENTUM</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Price velocity + volume surge. Catches early breakouts before markets reprice.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
+        <div><div style="font-size:10px;color:var(--bright);font-weight:bold">MOMENTUM</div><div style="font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5">Price velocity + volume surge. Catches breakouts before markets reprice.</div><div style="font-size:9px;color:var(--muted);margin-top:4px" id="strat-b-meta">—</div></div>
       </div>
       <div id="strat-status-c" style="display:flex;align-items:flex-start;gap:10px;padding:10px;background:rgba(0,0,0,0.3);border-radius:3px;border-left:2px solid var(--dim)">
         <div class="strat-indicator strat-c"></div>
@@ -422,7 +423,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
         <div class="toggle-row">
           <div class="toggle-info">
             <div class="toggle-name"><span class="strat-indicator strat-a" style="display:inline-block"></span> Trend Scalp</div>
-            <div class="toggle-desc">EMA stack + RSI pullback. Rides uptrends & downtrends.</div>
+            <div class="toggle-desc">RSI(14) + EMA 9/21. Best for trending momentum scalps.</div>
           </div>
           <label class="toggle-wrap">
             <input type="checkbox" id="tog-trend" onchange="saveSetting('strategies.TREND_SCALP', this.checked)">
@@ -697,7 +698,7 @@ async function refresh() {
       document.getElementById('tk-pnl').className = 'ti-v '+(pnl>0?'pos':pnl<0?'neg':'neutral');
       document.getElementById('s-wag').textContent = '$'+(s.totalWagered||'0.00')+' wagered';
       document.getElementById('s-wr').textContent = s.winRate||'N/A';
-      document.getElementById('s-wl').textContent = (s.wins||0)+'W / '+(s.losses||0)+'L / '+(s.expired||0)+' EXP';
+      document.getElementById('s-wl').textContent = (s.wins||0)+'W / '+(s.losses||0)+'L';
       document.getElementById('s-active').textContent = s.activeBets||0;
       document.getElementById('s-total').textContent = (s.betsPlaced||0)+' placed';
       document.getElementById('s-scalps').textContent = s.scalps||0;
@@ -750,7 +751,12 @@ async function refresh() {
       document.getElementById('tk-bias').className='ti-v '+(bias>0.1?'pos':bias<-0.1?'neg':'neutral');
       document.getElementById('tk-rsi').textContent=sig.rsi?.toFixed(0)||'—';
       document.getElementById('s-conf').textContent=(conf*100).toFixed(0)+'%';
-      document.getElementById('s-atr').textContent=sig.atr?'$'+fmt(sig.atr):'—';
+
+      // Open P&L from active bets
+      const activeBets = d.activeBets||0;
+      document.getElementById('s-opl').textContent='$0.00'; // updated by tick
+      document.getElementById('s-opl-sub').textContent=activeBets+' open position'+(activeBets!==1?'s':'');
+
       document.getElementById('pm-ema9').textContent=fmtD(sig.ema9);
       document.getElementById('pm-ema21').textContent=fmtD(sig.ema21);
 
@@ -777,25 +783,9 @@ async function refresh() {
       const strats = sig.strategies||{};
       const A = strats.A, B = strats.B, C = strats.C;
       let bars = '';
-      if(A) {
-        const rsiN = A.rsi!=null?(A.rsi-50)/50:0;
-        const ts = Math.min(1,(A.trendStrength||0)/2);
-        const emaBias = A.emaBullStack?ts:A.emaBearStack?-ts:0;
-        bars += sigBar('RSI SIGNAL', rsiN, '#00ff9d');
-        bars += sigBar('EMA TREND', emaBias, '#00ff9d');
-      }
-      if(B) {
-        const roc = Math.max(-1,Math.min(1,(B.roc3||0)*40));
-        const vol = Math.min(1,((B.volSurge||1)-1)*0.8)*Math.sign(B.bias||1);
-        bars += sigBar('MOMENTUM', roc, '#ffd200');
-        bars += sigBar('VOL SURGE', vol, '#ffd200');
-      }
-      if(C) {
-        const rsiEx = C.rsi!=null?(C.rsi>50?-(C.rsi-50)/50:(50-C.rsi)/50):0;
-        const bbPos = C.bb?.pct!=null?(0.5-C.bb.pct)*2:0;
-        bars += sigBar('RSI EXTREME', rsiEx, '#00b4ff');
-        bars += sigBar('BB POSITION', bbPos, '#00b4ff');
-      }
+      if(A){const rN=A.rsi!=null?(A.rsi-50)/50:0;const ts=Math.min(1,(A.trendStrength||0)/2);bars+=sigBar('RSI SIGNAL',rN,'#00ff9d')+sigBar('EMA TREND',A.emaBullStack?ts:A.emaBearStack?-ts:0,'#00ff9d');}
+      if(B){bars+=sigBar('MOMENTUM',Math.max(-1,Math.min(1,(B.roc3||0)*40)),'#ffd200')+sigBar('VOL SURGE',Math.min(1,((B.volSurge||1)-1)*0.8)*Math.sign(B.bias||1),'#ffd200');}
+      if(C){bars+=sigBar('RSI EXTREME',C.rsi!=null?(C.rsi>50?-(C.rsi-50)/50:(50-C.rsi)/50):0,'#00b4ff')+sigBar('BB POSITION',C.bb?.pct!=null?(0.5-C.bb.pct)*2:0,'#00b4ff');}
       document.getElementById('sig-grid').innerHTML = bars || '<div class="empty" style="padding:16px">NO SIGNAL DATA</div>';
 
       // Strategy meta info
@@ -847,7 +837,7 @@ async function refresh() {
           <div class="mkt-edge ${edge?'e':''}">${edge?(edge*100).toFixed(1)+'%':'—'}</div>
           <div class="mkt-min">${m._minutesLeft||'—'}m</div>
         </div>`;
-      }).join('');
+      }).join('') + showBtn;
     }
 
     // Bets
@@ -855,17 +845,32 @@ async function refresh() {
       const bets = betsR.value;
       const wins = bets.filter(b=>b.status==='won').length;
       const losses = bets.filter(b=>b.status==='lost').length;
-      const bes = bets.filter(b=>b.status==='breakeven').length;
+      const expired_c = bets.filter(b=>b.status==='expired').length;
       document.getElementById('bets-count').textContent = bets.length+' bets';
-      const expired = bets.filter(b=>b.status==='expired').length;
-      document.getElementById('bets-stats').textContent = wins+'W / '+losses+'L / '+expired+' EXP';
+      document.getElementById('bets-stats').textContent = wins+'W / '+losses+'L / '+expired_c+' EXP';
 
-      document.getElementById('bets-list').innerHTML = [...bets].reverse().map((b,i) => {
+      const SHOW_DEFAULT = 4;
+      const showAll = window._betsShowAll || false;
+      const sorted = [...bets].reverse();
+      const visible = showAll ? sorted : sorted.slice(0, SHOW_DEFAULT);
+      const hasMore = sorted.length > SHOW_DEFAULT;
+
+      const showBtn = hasMore
+        ? `<div style="text-align:center;padding:10px 0 4px">
+            <button onclick="window._betsShowAll=!window._betsShowAll;renderDash(lastData)"
+              style="background:rgba(0,180,255,0.1);border:1px solid var(--border2);color:var(--blue);
+                     font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;
+                     padding:6px 16px;border-radius:2px;cursor:pointer">
+              ${showAll ? '▲ SHOW LESS' : '▼ SHOW ALL ('+sorted.length+' bets)'}
+            </button>
+           </div>`
+        : '';
+
+      document.getElementById('bets-list').innerHTML = visible.map((b,i) => {
         const sc = b.status==='won'?'s-won':b.status==='lost'?'s-lost':'s-open';
         const pnl = b.pnl != null ? b.pnl : null;
         const pnlStr = pnl != null ? (pnl>=0?'+':'')+'$'+Math.abs(pnl).toFixed(2) : 'OPEN';
-        const statusLabel = b.status==='won'?'WIN':b.status==='lost'?'LOSS':b.status==='expired'?'EXP':b.status==='breakeven'?'B/E':'OPEN';
-        const stratCol = b.strategy==='TREND_SCALP'?'var(--green)':b.strategy==='MOMENTUM'?'var(--yellow)':'var(--blue)';
+        const stratCol = b.strategy==='RSI_EMA'?'var(--green)':b.strategy==='WALL'?'var(--yellow)':'var(--blue)';
 
         // Entry/exit details
         const entryPct = b.entryPrice ? (b.entryPrice*100).toFixed(1)+'¢' : '—';
@@ -896,7 +901,7 @@ async function refresh() {
               </div>
               <div class="bd-item">
                 <div class="bd-label">Status</div>
-                <div class="bd-val ${sc}">${statusLabel}${b.exitReason?' ['+b.exitReason.toUpperCase()+']':''}</div>
+                <div class="bd-val ${sc}">${b.status?.toUpperCase()||'OPEN'}${b.exitReason?' ['+b.exitReason.toUpperCase()+']':''}</div>
               </div>
               <div class="bd-item">
                 <div class="bd-label">Entry Price</div>
@@ -969,11 +974,11 @@ function buildReasoning(b) {
 
   // Strategy explanation
   if (strat === 'TREND_SCALP') {
-    lines.push(`<b style="color:var(--green)">TREND SCALP</b>: EMA stack confirmed direction — RSI timed the pullback entry.`);
+    lines.push(`<b style="color:var(--green)">TREND SCALP</b>: EMA stack confirmed direction — RSI timed the pullback.`);
   } else if (strat === 'MOMENTUM') {
-    lines.push(`<b style="color:var(--yellow)">MOMENTUM</b>: Price velocity + volume surge — entered early on accelerating ${side==='YES'?'bullish':'bearish'} directional bias.`);
+    lines.push(`<b style="color:var(--yellow)">MOMENTUM</b>: Price velocity + volume surge. Entered on accelerating ${side==='YES'?'bullish':'bearish'} directional bias.`);
   } else if (strat === 'MEAN_REVERT') {
-    lines.push(`<b style="color:var(--blue)">MEAN REVERT</b>: RSI at extreme + Bollinger band edge — fading overextended ${side==='YES'?'bid support below price (bullish)':'ask resistance above price (bearish)'}.`);
+    lines.push(`<b style="color:var(--blue)">MEAN REVERT</b>: RSI extreme + Bollinger band edge. Fading overextended ${side==='YES'?'bid support below price (bullish)':'ask resistance above price (bearish)'}.`);
   }
 
   // Edge explanation
@@ -997,13 +1002,55 @@ function buildReasoning(b) {
 
 refresh();
 setInterval(refresh, 8000);
+
+// ── Live expiry clock ─────────────────────────────────────
+let _nextExpiry = null;
+function tickExpiry() {
+  const expEl = document.getElementById('s-exp');
+  const subEl = document.getElementById('s-exp-sub');
+  if (!expEl) return;
+  if (!_nextExpiry) { expEl.textContent='—'; subEl.textContent='no active bets'; return; }
+  const ms = _nextExpiry - Date.now();
+  if (ms <= 0) { expEl.textContent='00:00'; subEl.textContent='settling...'; return; }
+  const m = Math.floor(ms/60000);
+  const s = Math.floor((ms%60000)/1000);
+  expEl.textContent = (m>0?m+'m ':'')+s+'s';
+  subEl.textContent = 'until next expiry';
+  expEl.className = 'stat-v '+(ms<60000?'neg':ms<180000?'pos':'neutral');
+}
+setInterval(tickExpiry, 1000);
+
+// Update _nextExpiry when we get active bet data
+function updateExpiryFromBets(bets) {
+  if (!bets || bets.length === 0) { _nextExpiry = null; tickExpiry(); return; }
+  const ends = bets
+    .filter(b => b.marketEndDateIso)
+    .map(b => new Date(b.marketEndDateIso).getTime())
+    .filter(t => t > Date.now())
+    .sort((a,b) => a-b);
+  _nextExpiry = ends[0] || null;
+  tickExpiry();
+}
+
+// Poll active bets for expiry clock
+setInterval(async () => {
+  try {
+    const r = await fetch('/active');
+    const active = await r.json();
+    updateExpiryFromBets(active);
+  } catch {}
+}, 5000);
+
 </script>
 
-  <footer style="text-align:center;padding:18px 0 24px;border-top:1px solid var(--border);margin-top:8px;">
+  <footer style="text-align:center;padding:18px 0 28px;border-top:1px solid var(--border);margin-top:12px;">
     <a href="https://x.com/0xblaq?s=11" target="_blank" rel="noopener"
-       style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);text-decoration:none;font-size:10px;letter-spacing:1px;font-family:'Share Tech Mono',monospace;transition:color 0.2s"
+       style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);text-decoration:none;
+              font-size:10px;letter-spacing:1.5px;font-family:'Share Tech Mono',monospace;transition:color 0.2s"
        onmouseover="this.style.color='var(--bright)'" onmouseout="this.style.color='var(--muted)'">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.254 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.254 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
       @0xblaq
     </a>
   </footer>
