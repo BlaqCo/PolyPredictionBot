@@ -41,12 +41,20 @@ function estimateContractPrice(bet, currentBtc) {
 
   // Parse question to determine direction
   const q = (bet.marketQuestion || "").toLowerCase();
-  const isBullQ = q.includes("above") || q.includes("higher") ||
-    q.includes("rise") || q.includes("reach") || q.includes("hit") ||
-    q.includes("exceed") || q.includes("over");
-
-  // YES on bull = long, NO on bull = short, YES on bear = short, NO on bear = long
-  const isLong = isBullQ ? bet.side === "YES" : bet.side === "NO";
+  
+  // "BTC Up or Down" markets: YES = up, NO = down
+  const isUpOrDown = q.includes("up or down") || q.includes("up/down");
+  let isLong;
+  if (isUpOrDown) {
+    // YES means BTC goes up
+    isLong = bet.side === "YES";
+  } else {
+    // Price level markets: "Will BTC be above $X"
+    const isBullQ = q.includes("above") || q.includes("higher") ||
+      q.includes("rise") || q.includes("reach") || q.includes("hit") ||
+      q.includes("exceed") || q.includes("over");
+    isLong = isBullQ ? bet.side === "YES" : bet.side === "NO";
+  }
 
   // Binary option delta: 0.45 near ATM (50¢), less at extremes
   const distFromMid = Math.abs(bet.entryPrice - 0.5);
