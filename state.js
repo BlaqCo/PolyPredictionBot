@@ -24,18 +24,20 @@ const state = {
 
 console.log(`💰 State initialized | Starting balance: $${STARTING_BALANCE} | Mode: ${IS_DRY ? "DRY RUN" : "LIVE"}`);
 
-export function recordBet({ market, side, betSize, edge, trueProbability, impliedProbability, orderId, entryPrice, strategy, reasoning }) {
+export function recordBet({ market, side, betSize, edge, trueProbability, impliedProbability, orderId, entryPrice, strategy, reasoning, entryBtcPrice }) {
   const bet = {
     id: `bet_${Date.now()}`,
     orderId,
     marketConditionId: market.conditionId || market.condition_id,
     marketQuestion: market.question,
+    marketEndDateIso: market.endDateIso || market.endDate,
     side,
     betSize,
     edge,
     trueProbability,
     impliedProbability,
     entryPrice: entryPrice || impliedProbability,
+    entryBtcPrice: entryBtcPrice || null,
     strategy: strategy || "UNKNOWN",
     reasoning: reasoning || "",
     placedAt: new Date().toISOString(),
