@@ -1,150 +1,120 @@
 /**
- * scalper.js
+ * scalper.js — PolyBettor Exit Engine
  *
- * Exit engine for PolyBettor.
+ * Contract P&L math:
+ * - Each synthetic market is a binary: "Will BTC be above $X in 15 min?"
+ * - Bot entry is at ~49¢ (49% implied probability)
+ * - Delta of a near-ATM binary ≈ 0.40 per 1% BTC move
+ * - So 0.5% BTC move = 0.005 * 0.40 = 0.002 price change = 0.4% on a 49¢ contract
+ * 
+ * That's still tiny. Real fix: use CUMULATIVE BTC move from entry, not scan-to-scan.
+ * entryBtcPrice is stored per bet. currentBtc fetched fresh each cycle.
+ * A 1% cumulative BTC move from entry → ~20% contract gain → TP fires.
+ * That's realistic for a 15-min window on a trending market.
  *
- * DRY RUN reality check:
- * - Synthetic markets expire every 15/60/90 min
- * - conditionId changes each scan so we can't track live price from market object
- * - Instead: use REAL BTC price movement to drive contract P&L
- * - A YES "BTC above $X in 15 min" contract is essentially a leveraged BTC long
- * - Contract sensitivity: near-ATM ~2-3x BTC % move (options delta effect)
- * - This is NOT random simulation — it's real BTC driving fake contract prices
+ * TP_LOW=0.10 means 10% contract gain needed.
+ * 10% / 0.40 delta = 0.25% BTC move needed from entry price.
+ * $61,000 * 0.0025 = $152 BTC move. Happens frequently intraday.
  */
 
 import axios from "axios";
 import { getAllActiveBets, closeBet } from "./state.js";
 
 const trailState = new Map();
-let lastBtcPrice = null;
 
-async function getLiveBtcPrice() {
+// Fetch current BTC price — called once per scan cycle, shared across all bets
+export async function fetchCurrentBtcPrice() {
   try {
     const { data } = await axios.get("https://api.kraken.com/0/public/Ticker",
       { params: { pair: "XBTUSD" }, timeout: 4000 });
     const p = parseFloat(data.result?.XXBTZUSD?.c?.[0]);
-    if (p > 0) lastBtcPrice = p;
+    if (p > 0) return p;
   } catch {}
-  return lastBtcPrice;
+  return null;
 }
 
-/**
- * Estimate current contract price from real BTC price movement.
- *
- * Near-ATM binary option delta: ~0.35–0.45 per 1% BTC move
- * = roughly 35-45 cent change per 1% BTC move on a 50¢ contract
- * That means a 0.5% BTC move = ~17-22% contract gain → realistic TP
- *
- * Direction: YES on bull = profits when BTC goes up
- *            NO on bull  = profits when BTC goes down
- *            YES on bear = profits when BTC goes down
- *            NO on bear  = profits when BTC goes up
- */
-function contractPrice(bet, currentBtc) {
-  if (!currentBtc || !bet.entryBtcPrice || !bet.entryPrice) {
-    // No BTC data — gentle hold near entry
-    return bet.entryPrice;
-  }
+function estimateContractPrice(bet, currentBtc) {
+  if (!currentBtc || !bet.entryBtcPrice || !bet.entryPrice) return bet.entryPrice;
 
+  // CUMULATIVE move from entry (not scan-to-scan)
   const btcChangePct = (currentBtc - bet.entryBtcPrice) / bet.entryBtcPrice;
 
-  // Determine if this is a bull or bear contract from the question text
+  // Parse question to determine direction
   const q = (bet.marketQuestion || "").toLowerCase();
-  const isBullQuestion = q.includes("above") || q.includes("higher") ||
-    q.includes("rise") || q.includes("reach") || q.includes("hit");
+  const isBullQ = q.includes("above") || q.includes("higher") ||
+    q.includes("rise") || q.includes("reach") || q.includes("hit") ||
+    q.includes("exceed") || q.includes("over");
 
   // YES on bull = long, NO on bull = short, YES on bear = short, NO on bear = long
-  let isLong;
-  if (isBullQuestion) {
-    isLong = bet.side === "YES";
-  } else {
-    isLong = bet.side === "NO";
-  }
+  const isLong = isBullQ ? bet.side === "YES" : bet.side === "NO";
 
-  // Binary option near-ATM delta ~0.40 (moves 40¢ per 1% BTC move)
-  // Increases as contract goes ITM, decreases as it goes OTM
-  const currentProb = bet.entryPrice; // approximation
-  const delta = 0.40 * Math.min(1, currentProb * 2); // 0 at edges, max at 0.5+
+  // Binary option delta: 0.45 near ATM (50¢), less at extremes
+  const distFromMid = Math.abs(bet.entryPrice - 0.5);
+  const delta = Math.max(0.25, 0.45 - distFromMid * 0.4);
 
-  const move = btcChangePct * delta * (isLong ? 1 : -1);
-  const newPrice = bet.entryPrice + move;
+  const priceChange = btcChangePct * delta * (isLong ? 1 : -1);
+  const newPrice = bet.entryPrice + priceChange;
 
   return Math.max(0.03, Math.min(0.97, newPrice));
 }
 
 export async function checkScalpExits(markets, signals, dryRun = true) {
   const active = getAllActiveBets();
-  if (active.length === 0) return [];
+  if (active.length === 0) return { exits: [], currentBtc: null };
 
-  const currentBtc = await getLiveBtcPrice();
+  const currentBtc = await fetchCurrentBtcPrice();
 
-  // Read live config (updated by dashboard settings)
-  const TP_LOW    = parseFloat(process.env.TP_LOW    || "0.12");
-  const TP_HIGH   = parseFloat(process.env.TP_HIGH   || "0.22");
-  const STOP_LOSS = parseFloat(process.env.STOP_LOSS || "0.40");
-  const TRAIL_AT  = parseFloat(process.env.TRAIL_AFTER || "0.08");
-  const TRAIL_PCT = parseFloat(process.env.TRAIL_PCT   || "0.04");
+  const TP_LOW    = parseFloat(process.env.TP_LOW    || "0.10");
+  const TP_HIGH   = parseFloat(process.env.TP_HIGH   || "0.20");
+  const STOP_LOSS = parseFloat(process.env.STOP_LOSS || "0.15");
+  const TRAIL_AT  = parseFloat(process.env.TRAIL_AFTER || "0.07");
+  const TRAIL_PCT = parseFloat(process.env.TRAIL_PCT   || "0.035");
 
   const exits = [];
 
   for (const bet of active) {
     if (!bet.entryPrice) continue;
 
-    // Current contract price from real BTC movement
-    const currentPrice = contractPrice(bet, currentBtc);
+    const currentPrice = estimateContractPrice(bet, currentBtc);
     const pnlPct = (currentPrice - bet.entryPrice) / bet.entryPrice;
     const unrealizedPnl = parseFloat((bet.betSize * pnlPct).toFixed(2));
 
     // Trailing stop
     let trail = trailState.get(bet.marketConditionId);
-    if (!trail) {
-      trail = { peak: currentPrice, trailStop: null };
-      trailState.set(bet.marketConditionId, trail);
-    }
+    if (!trail) { trail = { peak: currentPrice, trailStop: null }; trailState.set(bet.marketConditionId, trail); }
     if (currentPrice > trail.peak) trail.peak = currentPrice;
-    const peakPnlPct = (trail.peak - bet.entryPrice) / bet.entryPrice;
-    if (peakPnlPct >= TRAIL_AT) {
-      trail.trailStop = trail.peak * (1 - TRAIL_PCT);
-    }
+    const peakGain = (trail.peak - bet.entryPrice) / bet.entryPrice;
+    if (peakGain >= TRAIL_AT) trail.trailStop = trail.peak * (1 - TRAIL_PCT);
 
     let shouldExit = false, exitReason = "", exitPrice = currentPrice;
 
-    // Take profit
-    if (pnlPct >= TP_HIGH) {
-      shouldExit = true; exitReason = "TAKE_PROFIT_MAX";
-    } else if (pnlPct >= TP_LOW) {
-      shouldExit = true; exitReason = "TAKE_PROFIT";
-    }
-    // Trailing stop
-    else if (trail.trailStop && currentPrice <= trail.trailStop) {
-      shouldExit = true; exitReason = "TRAIL_STOP";
-    }
-    // Stop loss
-    else if (pnlPct <= -STOP_LOSS) {
-      shouldExit = true; exitReason = "STOP_LOSS";
-    }
+    if (pnlPct >= TP_HIGH)                                    { shouldExit = true; exitReason = "TAKE_PROFIT_MAX"; }
+    else if (pnlPct >= TP_LOW)                               { shouldExit = true; exitReason = "TAKE_PROFIT"; }
+    else if (trail.trailStop && currentPrice <= trail.trailStop) { shouldExit = true; exitReason = "TRAIL_STOP"; }
+    else if (pnlPct <= -STOP_LOSS)                           { shouldExit = true; exitReason = "STOP_LOSS"; }
 
-    // Expiry check — resolve based on whether BTC moved in bet's favor
+    // Expiry
     const endDate = bet.marketEndDateIso;
     if (endDate) {
       const msLeft = new Date(endDate) - Date.now();
-      if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
+      if (msLeft > 0 && msLeft < 2 * 60 * 1000) {
         shouldExit = true; exitReason = "NEAR_EXPIRY";
       } else if (msLeft <= 0 && !shouldExit) {
-        // Contract expired — was the bet directionally correct?
         shouldExit = true; exitReason = "EXPIRED";
+        // Settlement: did BTC move in bet's direction vs entry?
         const q = (bet.marketQuestion || "").toLowerCase();
-        const isBullQ = q.includes("above") || q.includes("higher") || q.includes("reach") || q.includes("hit");
+        const isBullQ = q.includes("above") || q.includes("higher") || q.includes("reach");
         const btcWentUp = currentBtc && bet.entryBtcPrice && currentBtc > bet.entryBtcPrice;
         const isLong = isBullQ ? bet.side === "YES" : bet.side === "NO";
-        const won = isLong ? btcWentUp : !btcWentUp;
-        // Win = contract settles at 1.0, loss = 0.0
-        exitPrice = won ? 0.95 : 0.05;
+        exitPrice = (isLong ? btcWentUp : !btcWentUp) ? 0.94 : 0.06;
       }
     }
 
     if (!shouldExit) {
-      console.log(`  📊 HOLD ${bet.side} $${bet.betSize} | ${(bet.entryPrice*100).toFixed(0)}¢→${(currentPrice*100).toFixed(0)}¢ | ${pnlPct>=0?'+':''}${(pnlPct*100).toFixed(1)}% | BTC:$${currentBtc?.toFixed(0)||'?'}`);
+      const btcMove = currentBtc && bet.entryBtcPrice
+        ? ((currentBtc - bet.entryBtcPrice) / bet.entryBtcPrice * 100).toFixed(2)
+        : "?";
+      console.log(`  📊 HOLD ${bet.side} $${bet.betSize} | entry:${(bet.entryPrice*100).toFixed(0)}¢ now:${(currentPrice*100).toFixed(0)}¢ | contract:${pnlPct>=0?'+':''}${(pnlPct*100).toFixed(1)}% | BTC:${btcMove}%`);
       continue;
     }
 
@@ -157,7 +127,7 @@ export async function checkScalpExits(markets, signals, dryRun = true) {
       exitPrice,
       reason: exitReason.startsWith("TAKE_PROFIT") ? "take_profit"
             : exitReason === "TRAIL_STOP" ? "trail_stop"
-            : exitReason === "NEAR_EXPIRY" || exitReason === "EXPIRED" ? "expiry"
+            : (exitReason === "NEAR_EXPIRY" || exitReason === "EXPIRED") ? "expiry"
             : "stop_loss",
       pnl: finalPnl,
     });
@@ -165,14 +135,13 @@ export async function checkScalpExits(markets, signals, dryRun = true) {
     exits.push({ market: bet.marketQuestion, side: bet.side, pnlPct: finalPnlPct, pnl: finalPnl, reason: exitReason });
   }
 
-  return exits;
+  return { exits, currentBtc };
 }
 
 export function filterScalpMarkets(markets) {
   return markets.filter(m => {
     if (!m.endDateIso && !m.endDate) return true;
-    const end = new Date(m.endDateIso || m.endDate);
-    const minLeft = (end - Date.now()) / 60000;
+    const minLeft = (new Date(m.endDateIso || m.endDate) - Date.now()) / 60000;
     return minLeft >= 3 && minLeft <= 180;
   });
 }
@@ -182,12 +151,10 @@ export function scalpQuality(market, signals) {
   if (market.endDateIso || market.endDate) {
     const minLeft = (new Date(market.endDateIso || market.endDate) - Date.now()) / 60000;
     if (minLeft < 3 || minLeft > 180) return 0;
-    if (minLeft >= 8 && minLeft <= 30) score += 0.35;
+    if (minLeft >= 8 && minLeft <= 30)       score += 0.35;
     else if (minLeft >= 30 && minLeft <= 90) score += 0.25;
-    else score += 0.10;
-  } else {
-    score += 0.20;
-  }
+    else                                      score += 0.10;
+  } else score += 0.20;
   score += Math.min(0.40, signals.confidence * 0.45);
   score += Math.min(0.25, Math.abs(signals.bias) * 0.30);
   return Math.min(1, score);
