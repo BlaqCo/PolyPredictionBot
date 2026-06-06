@@ -1,14 +1,14 @@
 /**
  * bot.js — PolyBettor scan engine
- * Hard cap: 3 concurrent bets max. 1 new bet per scan.
+ * Hard cap: MAX_CONCURRENT bets. 1 new bet per scan.
  */
-
-import { computeSignals } from "./signals.js";
-import { fetchBTCMarkets, placeOrder, getBalance } from "./polymarket.js";
-import { recordBet, hasActiveBet, recordScan, getStats, getAllActiveBets } from "./state.js";
+import { computeSignals }                                    from "./signals.js";
+import { fetchBTCMarkets, placeOrder, getBalance }           from "./polymarket.js";
+import { recordBet, hasActiveBet, recordScan,
+         getStats, getAllActiveBets }                         from "./state.js";
 import { checkScalpExits, filterScalpMarkets, scalpQuality } from "./scalper.js";
-import { sizeBet } from "./kelly.js";
-import { scoreSentiment } from "./sentiment.js";
+import { sizeBet }                                           from "./kelly.js";
+import { scoreSentiment }                                    from "./sentiment.js";
 
 export const botSettings = {
   strategies: { TREND_SCALP: true, MOMENTUM: true, MEAN_REVERT: true },
@@ -37,24 +37,22 @@ export async function runScanCycle() {
   recordScan();
 
   let allMarkets = [];
-  try {
-    allMarkets = await fetchBTCMarkets();
-  } catch (err) {
-    console.error("Market fetch error:", err.message);
-    return { signals, exits: [], betsPlaced: 0 };
-  }
+  try { allMarkets = await fetchBTCMarkets(); }
+  catch (err) { console.error("Market fetch error:", err.message); return { signals, exits: [], betsPlaced: 0 }; }
 
-  // Check exits first
+  // ── Exits first ──
   let exits = [];
   if (getAllActiveBets().length > 0) {
-    const scalpResult = await checkScalpExits(allMarkets, signals, DRY_RUN);
-    exits = scalpResult.exits || [];
+    const result = await checkScalpExits(allMarkets, signals, DRY_RUN);
+    exits = result.exits || [];
     for (const e of exits) {
-      console.log(`  ${e.pnl > 0 ? "🟢" : "🔴"} EXIT [${e.reason}] ${e.side} | ${e.pnl >= 0 ? "+" : ""}$${e.pnl}`);
+      if (e.reason !== "expiry") {
+        console.log(`  ${e.pnl > 0 ? "🟢" : "🔴"} EXIT [${e.reason.toUpperCase()}] ${e.side} | ${e.pnl >= 0 ? "+" : ""}$${e.pnl}`);
+      }
     }
   }
 
-  // Hard cap check
+  // ── Entry cap check ──
   const currentActive = getAllActiveBets().length;
   if (currentActive >= MAX_CONCURRENT) {
     console.log(`  ⏸ At max concurrent bets (${currentActive}/${MAX_CONCURRENT}) — skipping entries`);
@@ -63,44 +61,34 @@ export async function runScanCycle() {
     return { signals, exits, betsPlaced: 0 };
   }
 
-  // Enter new positions — max 1 per scan
+  // ── New entries ──
   const scalpMarkets = filterScalpMarkets(allMarkets);
   let betsPlaced = 0;
   const balance = await getBalance();
-  const slotsAvailable = MAX_CONCURRENT - currentActive;
 
   for (const market of scalpMarkets) {
     if (betsPlaced >= 1) break;
-    if (betsPlaced >= slotsAvailable) break;
+    if (getAllActiveBets().length >= MAX_CONCURRENT) break;
 
     const id = market.conditionId || market.condition_id;
     if (hasActiveBet(id)) continue;
-
-    const quality = scalpQuality(market, signals);
-    if (quality < 0.10) continue;
+    if (scalpQuality(market, signals) < 0.10) continue;
 
     let sentiment = { sentimentBias: 0 };
     try { sentiment = await scoreSentiment(signals, market); } catch {}
 
     const decision = sizeBet(signals, sentiment, market);
-    if (!decision.shouldBet) {
-      console.log(`  NO BET: ${decision.reasoning?.slice(0, 70)}`);
-      continue;
-    }
+    if (!decision.shouldBet) continue;
 
-    const maxBet = parseFloat(process.env.MAX_BET_SIZE || "5");
+    const maxBet  = parseFloat(process.env.MAX_BET_SIZE || "5");
     const finalBet = parseFloat(Math.min(decision.betSize, maxBet, balance * 0.15).toFixed(2));
     if (finalBet < 1 || balance < finalBet) continue;
 
-    const token = market.tokens?.find(t =>
-      t.outcome?.toLowerCase() === decision.side.toLowerCase()
-    );
+    const token = market.tokens?.find(t => t.outcome?.toLowerCase() === decision.side.toLowerCase());
     if (!token) continue;
 
     const entryPrice = token.price > 1 ? token.price / 100 : token.price;
-    const minLeft = market.endDateIso
-      ? ((new Date(market.endDateIso) - Date.now()) / 60000).toFixed(0)
-      : "?";
+    const minLeft    = market.endDateIso ? ((new Date(market.endDateIso) - Date.now()) / 60000).toFixed(0) : "?";
 
     try {
       const order = await placeOrder({
@@ -110,20 +98,16 @@ export async function runScanCycle() {
       });
 
       recordBet({
-        market,
-        side: decision.side,
-        betSize: finalBet,
-        edge: decision.edge,
-        trueProbability: decision.trueProb,
+        market, side: decision.side, betSize: finalBet,
+        edge: decision.edge, trueProbability: decision.trueProb,
         impliedProbability: decision.impliedProb,
         orderId: order.orderID || order.id,
-        entryPrice,
-        strategy: signals.activeStrategy,
+        entryPrice, strategy: signals.activeStrategy,
         reasoning: decision.reasoning,
-        entryBtcPrice: signals.currentPrice,  // CRITICAL: stored for cumulative delta math
+        entryBtcPrice: signals.currentPrice, // locked for cumulative delta math
       });
       betsPlaced++;
-      console.log(`  ✅ ENTRY ${decision.side} $${finalBet} @ ${(entryPrice*100).toFixed(1)}¢ | ${minLeft}min | ${signals.activeStrategy} | edge:${(decision.edge*100).toFixed(1)}% | ${market.question?.slice(0, 40)}`);
+      console.log(`  ✅ ENTRY ${decision.side} $${finalBet} @ ${(entryPrice*100).toFixed(1)}¢ | ${minLeft}min | ${signals.activeStrategy} | edge:${(decision.edge*100).toFixed(1)}% | ${market.question?.slice(0,40)}`);
     } catch (err) {
       console.error(`  ❌ Order failed: ${err.message}`);
     }
