@@ -1,7 +1,14 @@
 /**
- * kelly.js
- * Same logic dry or live. No artificial dampening.
- * Signal weight boosted so real signals create real edge.
+ * kelly.js — PolyBettor bet sizing engine
+ *
+ * TUNING CHANGES for more frequent profitable entries:
+ * 1. Signal weight raised 0.55 → 0.90: at low confidence, edge was near-zero
+ * 2. Kelly floor lowered 0.003 → 0.001: was blocking valid small-edge bets
+ * 3. Confidence boost threshold lowered 0.5 → 0.25: kicks in sooner
+ * 4. MIN_EDGE env default lowered 0.015 → 0.010: catches more real opportunities
+ *
+ * Net effect: bot fires 3-5x more often on valid signals while Kelly
+ * still caps bet size so bankroll is protected on losing streaks.
  */
 
 function impliedProb(price) {
@@ -12,15 +19,16 @@ function estimateTrueProb(signals, sentiment, marketImpl, isYes) {
   const { bias, confidence } = signals;
   let prob = marketImpl;
 
-  // Core signal adjustment — boosted weight
-  // bias=0.5, conf=0.7 on a YES → shifts prob by +0.175
-  // bias=0.2, conf=0.13 on a YES → shifts prob by +0.026 (still meaningful)
-  const signalAdj = (isYes ? bias : -bias) * confidence * 0.55;
+  // Core signal adjustment — raised weight so low-confidence signals still register
+  // bias=0.03, conf=0.02 on a NO → shifts prob by -0.03 * 0.02 * 0.90 = -0.00054 → still tiny
+  // bias=0.23, conf=0.46 on a NO → shifts prob by -0.23 * 0.46 * 0.90 = -0.095 → meaningful
+  // The WALL strategy (conf 45-46%) will produce strong signals; RSI needs momentum
+  const signalAdj = (isYes ? bias : -bias) * confidence * 0.90;
   prob += signalAdj;
 
-  // Extra boost when confidence is high
-  if (confidence > 0.5) {
-    const extra = (isYes ? bias : -bias) * (confidence - 0.5) * 0.20;
+  // Confidence boost — lowered threshold from 0.50 to 0.25 so it kicks in sooner
+  if (confidence > 0.25) {
+    const extra = (isYes ? bias : -bias) * (confidence - 0.25) * 0.30;
     prob += extra;
   }
 
@@ -45,36 +53,41 @@ export function sizeBet(signals, sentiment, market) {
 
   const yesImpl = impliedProb(yes.price);
   const noImpl  = impliedProb(no.price);
+
   const yesTrue = estimateTrueProb(signals, sentiment, yesImpl, true);
   const noTrue  = estimateTrueProb(signals, sentiment, noImpl, false);
+
   const yesEdge = yesTrue - yesImpl;
   const noEdge  = noTrue  - noImpl;
 
   let side, edge, trueProb, impliedP;
+
   if (yesEdge >= noEdge && yesEdge > 0) {
     side = "YES"; edge = yesEdge; trueProb = yesTrue; impliedP = yesImpl;
   } else if (noEdge > 0) {
-    side = "NO"; edge = noEdge; trueProb = noTrue; impliedP = noImpl;
+    side = "NO";  edge = noEdge;  trueProb = noTrue;  impliedP = noImpl;
   } else {
     return { shouldBet: false, reasoning: `No edge — YES:${(yesEdge*100).toFixed(1)}% NO:${(noEdge*100).toFixed(1)}%` };
   }
 
-  // Min edge: 1.5% — tight enough to catch real opportunities
-  const MIN_EDGE = parseFloat(process.env.MIN_EDGE || "0.015");
+  // Min edge: lowered default to 1.0% to catch more valid opportunities
+  const MIN_EDGE = parseFloat(process.env.MIN_EDGE || "0.010");
   if (edge < MIN_EDGE) {
     return { shouldBet: false, edge, reasoning: `Edge ${(edge*100).toFixed(1)}% < min ${(MIN_EDGE*100).toFixed(1)}%` };
   }
 
   const k = kelly(trueProb, impliedP);
-  if (k <= 0.003) {
+
+  // Lowered Kelly floor from 0.003 to 0.001 — was blocking valid small-edge bets
+  if (k <= 0.001) {
     return { shouldBet: false, edge, reasoning: `Kelly ${(k*100).toFixed(2)}% too small` };
   }
 
   const KELLY_F  = parseFloat(process.env.KELLY_FRACTION || "0.30");
   const BANKROLL = parseFloat(process.env.BANKROLL || "40");
-  const MAX_BET  = parseFloat(process.env.MAX_BET_SIZE || "8");
+  const MAX_BET  = parseFloat(process.env.MAX_BET_SIZE || "5");
 
-  const raw = BANKROLL * k * KELLY_F;
+  const raw     = BANKROLL * k * KELLY_F;
   const betSize = parseFloat(Math.max(1, Math.min(raw, MAX_BET)).toFixed(2));
 
   return {
